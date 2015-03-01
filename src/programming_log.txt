@@ -1,0 +1,61 @@
+2/15, 1pm - 6pm, Katherine, Daniel, Eddy, 5 hours
+Driver Order and Time Length:
+All, 3.5 hours, discussed project and design
+Katherine, 30 minutes, worked on alarm
+Eddy, 30 minutes, worked on alarm
+Daniel, 30 minutes, worked on alarm
+
+2/17,5pm - 6:30pm, Daniel, Eddy, Katherine, 1.5 hours
+Driver Order and Time Length:
+Eddy, 30 minutes
+Daniel, 30 minutes
+Katherine, 30 minutes
+
+2/17, 7:30pm - 9:30pm, Eddy, Katherine, Daniel, 2 hours
+Driver Order and Time Length:
+Everyone, 2 hours, discussed design for priority scheduler
+
+2/18, 7:30pm - 9:30pm, Katherine, Daniel, Eddy, 2 hours
+Driver Order and Time Length:
+Everyone, 30 minutes, discussed priority scheduler
+Eddy, 30 minutes
+Katherine, 30 minutes
+Daniel, 30 minutes
+
+2/19, 7:30pm - 9:30pm, Daniel, Eddy, Katherine, 2 hours
+Driver Order and Time Length:
+Eddy, 40 minutes
+Katherine, 40 minutes
+Daniel, 40 minutes
+
+2/21, 8:10pm - 10:10pm, Daniel, Eddy, Katherine, 2 hours
+Driver Order and Time Length:
+Eddy, 30 minutes
+Daniel, 30 minutes
+Katherine 30 minutes
+Everyone, 30 minutes, discussed priority donation
+
+2/26, 7:30pm - 11:45pm, Katherine, Eddy, Daniel, 4.25 hours
+Driver Order and Time Length:
+Everyone, 3.25 hours, discussed design for priority donation that will handle multiple donation
+Katherine, 30 minutes
+Eddy, 30 minutes
+
+2/27, 9:30am - 12pm, Daniel, Eddy, Katherine, 2.5 hours
+Everyone, 30 minutes, discussion
+Daniel, 40 minutes
+Katherine, 40 minutes
+Eddy, 40 minutes
+
+2/27, 4pm - 7pm, Katherine, Daniel, Eddy, 3 hours
+Everyone, 30 minutes, discussion
+Katherine, 30 minutes
+Eddy, 30 minutes
+Daniel, 30 minutes
+Everyone, 20 minutes, discussion
+Daniel, 20 minutes
+Katherine, 20 minutes, added comments
+
+
+
+
