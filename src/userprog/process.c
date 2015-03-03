@@ -446,6 +446,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char * argv[], int argc) 
 {
+  char * arg_pointers[argc];
   if(argc > MAXARGS) 
     PANIC("Too many arguments.");
 
@@ -457,23 +458,59 @@ setup_stack (void **esp, char * argv[], int argc)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }
-   char *my_esp = (char *)esp;
+   char *my_esp = (char *)*esp;
    int i;
-   for(i = argc; i >= 0; i--)
+   //pushing the strings onto the stack
+   for(i = 0; i < argc; i++)
    {
-    int length = strlen (argv[i]);
+    int length = strlen (argv[i]) + 1;
+		my_esp -= length;
+    arg_pointers[i] = my_esp;
+		printf("address: %x\n", my_esp);
     memcpy(my_esp, argv[i], length);
     // my_esp = argv[i];
+   }
 
-    my_esp -= length;
-   }                                       
-   *esp = my_esp;
+   //Word align padding
+   int padding = ((int) PHYS_BASE - (int) my_esp) % 4;
+   padding = (4 - padding) % 4;
+   my_esp = (char *) ((int) my_esp - padding);
+
+   *esp = (void *) my_esp;
+
+   //store null
+   int * ptrSize4 = (int *) *esp;
+
+    ptrSize4 -= 1;
+    *ptrSize4 = 0;
+
+    //pushing pointers to the strings (arguments)
+    for(i = argc - 1; i >= 0; i--){
+      ptrSize4 -= 1;
+      *ptrSize4 = (int) arg_pointers[i];//Ints are the same size pointers
+    }
+
+    //pushing the pointer to the array of arguments
+    int * argvArrayPointer = ptrSize4;
+    ptrSize4--;
+    *ptrSize4 = (int) argvArrayPointer;
+
+    //pushing argc
+    ptrSize4--;
+    *ptrSize4 = argc;
+
+    //push dummy return address
+    ptrSize4 -= 1;
+    *ptrSize4 = 0;
+
+                                         
+   *esp = (void *) ptrSize4;
    //ASSERT(0);
-   //hexdump(my_esp, my_esp, PHYS_BASE-my_esp, 1);
+   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   return success;
 }
