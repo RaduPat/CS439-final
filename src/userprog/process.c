@@ -21,6 +21,9 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+
+static struct semaphore exec_sema;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -31,6 +34,9 @@ process_execute (const char *cmd_line)
   char *fn_copy;
   tid_t tid;
 
+  //Initializes the semaphore here so it blocks when it calls thread_create
+  sema_init(&exec_sema, 0);
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -40,6 +46,7 @@ process_execute (const char *cmd_line)
      
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (cmd_line, PRI_DEFAULT, start_process, fn_copy);
+  sema_down(&exec_sema);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -65,6 +72,8 @@ start_process (void *file_name_)
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
+  //Unblocks the parent thread
+  sema_up(&exec_sema);
   if (!success) 
     thread_exit ();
 
@@ -462,55 +471,52 @@ setup_stack (void **esp, char * argv[], int argc)
       else
         palloc_free_page (kpage);
     }
-   char *my_esp = (char *)*esp;
-   int i;
+  char *my_esp = (char *)*esp;
+  int i;
    //pushing the strings onto the stack
-   for(i = 0; i < argc; i++)
-   {
-    int length = strlen (argv[i]) + 1;
-		my_esp -= length;
-    arg_pointers[i] = my_esp;
-		printf("address: %x\n", my_esp);
-    memcpy(my_esp, argv[i], length);
-    // my_esp = argv[i];
-   }
+  for(i = 0; i < argc; i++)
+    {
+      int length = strlen (argv[i]) + 1;
+		  my_esp -= length;
+      arg_pointers[i] = my_esp;
+		  printf("address: %x\n", my_esp);
+      memcpy(my_esp, argv[i], length);
+    }
 
    //Word align padding
-   int padding = ((int) PHYS_BASE - (int) my_esp) % 4;
-   padding = (4 - padding) % 4;
-   my_esp = (char *) ((int) my_esp - padding);
+  int padding = ((int) PHYS_BASE - (int) my_esp) % 4;
+  padding = (4 - padding) % 4;
+  my_esp = (char *) ((int) my_esp - padding);
 
-   *esp = (void *) my_esp;
+  *esp = (void *) my_esp;
 
    //store null
-   int * ptrSize4 = (int *) *esp;
-
-    ptrSize4 -= 1;
-    *ptrSize4 = 0;
+  int * ptrSize4 = (int *) *esp;
+  ptrSize4 -= 1;
+  *ptrSize4 = 0;
 
     //pushing pointers to the strings (arguments)
-    for(i = argc - 1; i >= 0; i--){
+  for (i = argc - 1; i >= 0; i--)
+    {
       ptrSize4 -= 1;
       *ptrSize4 = (int) arg_pointers[i];//Ints are the same size pointers
     }
 
     //pushing the pointer to the array of arguments
-    int * argvArrayPointer = ptrSize4;
-    ptrSize4--;
-    *ptrSize4 = (int) argvArrayPointer;
+  int * argvArrayPointer = ptrSize4;
+  ptrSize4--;
+  *ptrSize4 = (int) argvArrayPointer;
 
-    //pushing argc
-    ptrSize4--;
-    *ptrSize4 = argc;
+  //pushing argc
+  ptrSize4--;
+  *ptrSize4 = argc;
 
-    //push dummy return address
-    ptrSize4 -= 1;
-    *ptrSize4 = 0;
-
+  //push dummy return address
+  ptrSize4 -= 1;
+  *ptrSize4 = 0;
                                          
-   *esp = (void *) ptrSize4;
-   //ASSERT(0);
-   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+  *esp = (void *) ptrSize4;
+  hex_dump (*esp, *esp, PHYS_BASE-*esp, 1);
 
   return success;
 }
