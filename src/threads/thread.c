@@ -40,6 +40,9 @@ static struct lock tid_lock;
 /* Lock used to synchronize access to the file system. */
 static struct lock syscall_lock;
 
+/* Semaphore for synchronizing access to file system. */
+static struct semaphore exec_sema;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
