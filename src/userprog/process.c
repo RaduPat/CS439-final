@@ -24,6 +24,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 static struct semaphore exec_sema;
 
+static bool success_loadfn;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -46,6 +48,9 @@ process_execute (const char *cmd_line)
      
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (cmd_line, PRI_DEFAULT, start_process, fn_copy);
+  if(!success_loadfn)
+    tid = TID_ERROR;
+  
   sema_down(&exec_sema);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -55,7 +60,7 @@ process_execute (const char *cmd_line)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *file_name_)//Assuming that start_process is called only in process_execute. So no additional synchronization is required for success_loadfn.
 {
   char *file_name = file_name_;
   struct intr_frame if_;
@@ -69,6 +74,7 @@ start_process (void *file_name_)
 
 
   success = load (file_name, &if_.eip, &if_.esp);
+  success_loadfn = success;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);

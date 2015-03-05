@@ -43,6 +43,9 @@ static struct lock syscall_lock;
 /* Semaphore for synchronizing access to file system. */
 static struct semaphore exec_sema;
 
+/* List to hold the status structs of threads for the exit sys call */
+static struct list status_list;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {

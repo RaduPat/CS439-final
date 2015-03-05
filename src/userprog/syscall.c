@@ -7,13 +7,11 @@
 
 static void syscall_handler (struct intr_frame *);
 
-static struct status_holder
-	{
-		tid_t tid;
-		int status;
-	};
-
 static struct lock syscall_lock;
+
+static struct lock status_lock;
+
+static struct list status_list;
 
 void halt_h(void);
 void exit_h (int status);
@@ -24,6 +22,9 @@ syscall_init (void)
 {
 
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&status_lock);
+  list_init(&status_list);
+
 }
 
 static void
@@ -99,7 +100,13 @@ halt_h (void)
 void
 exit_h (int status)
 {
-		
+		struct status_holder new_status;
+		new_status.tid = thread_current()->tid;
+		new_status.status = thread_current()->status;
+		lock_acquire(&status_lock);
+		list_push_front(&status_list, new_status.status_elem);
+		lock_release(&status_lock);
+		thread_exit ();
 }
 
 tid_t

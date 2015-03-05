@@ -15,6 +15,14 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+  //struct for holding the tid of a thread that calls exit and its corresponding status
+  static struct status_holder
+  {
+    tid_t tid;
+    int status;
+    struct list_elem status_elem;
+  };
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -107,6 +115,7 @@ struct thread
     // Katherine driving
     struct thread * donee;
     struct list locks_held;  // A list of locks this thread is currently holding
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
