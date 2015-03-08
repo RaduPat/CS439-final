@@ -21,10 +21,17 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+/* List of all processes.  Processes are added to this list
+   when they are first scheduled and removed when they exit. */
+static struct list all_list;
+
+static struct list status_list;
 
 static struct semaphore exec_sema;
 
 static bool success_loadfn;
+
+static struct lock status_lock;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -37,7 +44,7 @@ process_execute (const char *cmd_line)
   tid_t tid;
 
   //Initializes the semaphore here so it blocks when it calls thread_create
-  sema_init(&exec_sema, 0);
+  sema_init(&exec_sema, 1);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -50,6 +57,8 @@ process_execute (const char *cmd_line)
   tid = thread_create (cmd_line, PRI_DEFAULT, start_process, fn_copy);
   if(!success_loadfn)
     tid = TID_ERROR;
+  
+  success_loadfn = false;
   
   sema_down(&exec_sema);
   if (tid == TID_ERROR)
@@ -105,7 +114,36 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while (1);
+  struct list_elem * a;
+  struct thread * athread;
+
+  int old_level = intr_disable();
+  for (a = list_begin (&all_list); a != list_end (&all_list); a = list_next (a))
+    {
+      athread = list_entry (a, struct thread, allelem);
+      if(athread->tid == child_tid && athread->parent == thread_current ())
+        { //athread is currently active and not dead
+          sema_down(&athread->wait_sema);
+        }
+    }
+  intr_set_level(old_level);
+
+  struct list_elem * b;
+  struct status_holder * astatus;
+
+  lock_acquire(&status_lock);
+  for (b = list_begin (&status_list); b != list_end (&status_list); b = list_next (b))
+    {
+      astatus = list_entry (b, struct status_holder, status_elem);
+      if(astatus->tid == child_tid && astatus->ptr_to_parent == thread_current ())
+        {
+          list_remove(&astatus->status_elem);
+          lock_release(&status_lock);
+          return astatus->status;
+        }
+    }
+  lock_release(&status_lock);
+  // while (1);
   return -1;
 }
 

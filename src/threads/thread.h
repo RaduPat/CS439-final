@@ -15,14 +15,6 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
-  //struct for holding the tid of a thread that calls exit and its corresponding status
-  static struct status_holder
-  {
-    tid_t tid;
-    int status;
-    struct list_elem status_elem;
-  };
-
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -32,6 +24,15 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+ //struct for holding the tid of a thread that calls exit and its corresponding status
+  static struct status_holder
+  {
+    tid_t tid;
+    int status;
+    struct list_elem status_elem;
+    struct thread * ptr_to_parent;
+  };
 
 /* A kernel thread or user process.
 
@@ -107,6 +108,9 @@ struct thread
     struct list_elem sleepingelem;     /* List element for sleeping threads list. */
     int64_t wakeup_time;               /* Time the thread should wake up, if it is asleep */
     struct semaphore sleepingsema;     /* Semaphore to control blocking and unblocking the thread */
+
+    struct thread * parent;
+    struct semaphore wait_sema;        //sema used in wait.
 
     // Daniel Driving
     int oldPriority;

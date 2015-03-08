@@ -102,9 +102,10 @@ exit_h (int status)
 {
 		struct status_holder new_status;
 		new_status.tid = thread_current()->tid;
-		new_status.status = thread_current()->status;
+		new_status.status = status;
+		new_status.ptr_to_parent = thread_current()->parent;
 		lock_acquire(&status_lock);
-		list_push_front(&status_list, new_status.status_elem);
+		list_push_front(&status_list, &new_status.status_elem);
 		lock_release(&status_lock);
 		thread_exit ();
 }
@@ -117,13 +118,13 @@ exec_h (const char *cmd_line)
 	lock_release(&syscall_lock);
 	return tid;
 }
-/*
+
 int
 wait_h (tid_t tid)
 {
-	
+	return process_wait(tid);
 }
-
+/*
 bool
 create_h (const char *file, unsigned initial_size) 
 {

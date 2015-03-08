@@ -46,6 +46,12 @@ static struct semaphore exec_sema;
 /* List to hold the status structs of threads for the exit sys call */
 static struct list status_list;
 
+/* Lock used to synchronize access to the list of statuses for dead threads */
+static struct lock status_lock;
+
+/* List of statuses for dead threads */
+static struct list status_list;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -308,6 +314,22 @@ thread_exit (void)
   process_exit ();
 #endif
 
+  //remove from memory status information belonging to any un-reaped children.
+  struct list_elem * e;
+  struct list_elem * prev;
+  struct status_holder *temp_status;
+  lock_acquire(&status_lock);
+  for (e = list_begin (&status_list); e != list_end (&status_list); e = list_next (e))
+  {
+    temp_status = list_entry (e, struct status_holder, status_elem);
+    if (temp_status->ptr_to_parent == thread_current())
+    {
+      e = e->prev;
+      list_remove(&temp_status->status_elem);
+    }
+  }
+  lock_release(&status_lock);
+
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -506,11 +528,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->oldPriority = priority;
   t->magic = THREAD_MAGIC;
+
+  //set parent
+  t->parent = thread_current();
   // Katherine driving
   t->donee = NULL;  // Hasn't donated to anything yet
   t->gotDonation = false;
   list_init(&t->locks_held);  // Initialize list of locks this thread holds
+  sema_init(&t->wait_sema, 0);
   list_push_back (&all_list, &t->allelem);
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
