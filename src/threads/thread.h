@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-#include "threads/synch.h"
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -102,24 +102,11 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
-
-    struct list_elem sleepingelem;     /* List element for sleeping threads list. */
-    int64_t wakeup_time;               /* Time the thread should wake up, if it is asleep */
-    struct semaphore sleepingsema;     /* Semaphore to control blocking and unblocking the thread */
-
     struct thread * parent;
     struct semaphore wait_sema;        //sema used in wait.
 
-    // Daniel Driving
-    int oldPriority;
-    bool gotDonation;
-
-    // Katherine driving
-    struct thread * donee;
-    struct list locks_held;  // A list of locks this thread is currently holding
-
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -165,10 +152,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
-//Custom functions defined by us
-bool isLowerPriority(struct list_elem *thread1_elem, struct list_elem *thread2_elem, void * aux UNUSED);
-bool isLowerPriority_S(struct list_elem *sem_elem1, struct list_elem *sem_elem2, void * aux UNUSED);
-void preemptAndRunIfNecessary(void);
 
 #endif /* threads/thread.h */

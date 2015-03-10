@@ -30,8 +30,6 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
-static struct list sleeping_list;
-
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -39,8 +37,6 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
-  list_init (&sleeping_list);  // Initialize list of threads sleeping due to timer_sleep()
-
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -93,18 +89,11 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  struct thread *current = thread_current();
-  int64_t started_sleeping = timer_ticks();
-  current->wakeup_time = ticks + started_sleeping;
-  sema_init(&(current->sleepingsema), 0);  // Katherine added semaphore: Initialize thread's semaphore to 0 so it will block
+  int64_t start = timer_ticks ();
 
-  // Daniel Driving
-  intr_disable();  // Katherine added disable and enable interrupts
-  list_push_back(&sleeping_list, &(current->sleepingelem));  // Put thread on list of sleeping threads
-  intr_enable();  
-
-  sema_down(&(current->sleepingsema));  // Blocks thread
-
+  ASSERT (intr_get_level () == INTR_ON);
+  while (timer_elapsed (start) < ticks) 
+    thread_yield ();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -176,14 +165,13 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  wakeSleepingThreads_ifAny();  // Wake threads that have slept due to timer_sleep()
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -255,23 +243,4 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
-}
-
-void wakeSleepingThreads_ifAny(void) {
-  // Daniel driving
-  struct list_elem *e;
-
-if(!list_empty (&sleeping_list)){
-  for (e = list_begin (&sleeping_list); e != list_end (&sleeping_list); e = list_next (e)) {
-
-          struct thread *aSleepingThread = list_entry (e, struct thread, sleepingelem);
-
-          if (aSleepingThread->wakeup_time <= timer_ticks()) { // Katherine simplified this line
-            // Katherine driving
-            list_remove(&(aSleepingThread->sleepingelem)); 
-            sema_up(&(aSleepingThread->sleepingsema));  // Unblock the thread
-            // Don't need to disable interrupts because we are in an interrupt handler
-          }
-        }
-  }
 }

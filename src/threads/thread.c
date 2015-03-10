@@ -1,4 +1,3 @@
-#include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -10,6 +9,7 @@
 #include "threads/palloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
+#include "threads/thread.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -115,6 +115,7 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -201,6 +202,9 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  //set parent
+  t->parent = thread_current();
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -225,8 +229,6 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  // Daniel Driving
-  preemptAndRunIfNecessary();
 
   return tid;
 }
@@ -314,22 +316,6 @@ thread_exit (void)
   process_exit ();
 #endif
 
-  //remove from memory status information belonging to any un-reaped children.
-  struct list_elem * e;
-  struct list_elem * prev;
-  struct status_holder *temp_status;
-  lock_acquire(&status_lock);
-  for (e = list_begin (&status_list); e != list_end (&status_list); e = list_next (e))
-  {
-    temp_status = list_entry (e, struct status_holder, status_elem);
-    if (temp_status->ptr_to_parent == thread_current())
-    {
-      e = e->prev;
-      list_remove(&temp_status->status_elem);
-    }
-  }
-  lock_release(&status_lock);
-
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -379,29 +365,7 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  // Provide mutual exclusion while modifying thread's priority 
-  enum intr_level old_level;//disabling interrupts because waiting list of a lock is shared
-  old_level = intr_disable ();
-
-  // Set the thread's base priority to the new priority, regardless of donation status
-  thread_current ()->oldPriority = new_priority;
-
-  // If thread has received donation, only reset effective priority if it will be higher than the donated priority
-  if(thread_current()->gotDonation) {
-    if(new_priority > thread_current()->priority) {
-      thread_current()->priority = new_priority;
-    }
-  } else {  // If thread hasn't received donation, new priority becomes its effective priority too
-    thread_current()->priority = new_priority;
-  }
-
-  // // Done modifying priority
-  //Restore interrupts 
-  intr_set_level (old_level);
-
-  // Katherine driving
-  // Get highest priority thread in the ready list
-  preemptAndRunIfNecessary();
+  thread_current ()->priority = new_priority;
 }
 
 /* Returns the current thread's priority. */
@@ -441,7 +405,7 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -490,7 +454,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -526,18 +490,12 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->oldPriority = priority;
   t->magic = THREAD_MAGIC;
-
-  //set parent
-  t->parent = thread_current();
-  // Katherine driving
-  t->donee = NULL;  // Hasn't donated to anything yet
-  t->gotDonation = false;
-  list_init(&t->locks_held);  // Initialize list of locks this thread holds
   sema_init(&t->wait_sema, 0);
+  ASSERT(&t->allelem != NULL);
+  printf("********************added to all list:%s \n", &t->name);
   list_push_back (&all_list, &t->allelem);
-
+  ASSERT(all_list.head.next != NULL);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -563,12 +521,8 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else{
-    struct list_elem *currMaxPriorityOnReadyQ_elem = list_max (&ready_list, (list_less_func *) isLowerPriority, NULL);
-    struct thread *currMaxPriorityOnReadyQ = list_entry(currMaxPriorityOnReadyQ_elem, struct thread, elem);
-    list_remove(currMaxPriorityOnReadyQ_elem);
-    return currMaxPriorityOnReadyQ;
-  }
+  else
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -617,7 +571,7 @@ thread_schedule_tail (struct thread *prev)
     }
 }
 
-/* Schedules a new process.  At entry, intertrupts must be off and
+/* Schedules a new process.  At entry, interrupts must be off and
    the running process's state must have been changed from
    running to some other state.  This function finds another
    thread to run and switches to it.
@@ -653,54 +607,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
-
-//Eddy Driving
-
-bool isLowerPriority(struct list_elem *thread1_elem, struct list_elem *thread2_elem, void * aux UNUSED){
-  struct thread *thread1;
-  struct thread *thread2;
-
-  thread1 = list_entry(thread1_elem, struct thread, elem);
-  thread2 = list_entry(thread2_elem, struct thread, elem);
-
-  return (thread1->priority < thread2->priority);
-}
-
-bool isLowerPriority_S(struct list_elem *sem_elem1, struct list_elem *sem_elem2, void * aux UNUSED){//this version works with lists of semaphore_elems
-  struct semaphore_elem *forThread1;
-  struct semaphore_elem *forThread2;
-
-  forThread1 = list_entry(sem_elem1, struct semaphore_elem, elem);
-  forThread2 = list_entry(sem_elem2, struct semaphore_elem, elem);
-
-  return (forThread1->currUsingThread->priority < forThread2->currUsingThread->priority);
-}
-
-void preemptAndRunIfNecessary(void) {
-  // Daniel and Katherine Driving
-  // Get highest priority thread in the ready list
-
-  // Must disable interrupts because ready list is shared with interrupt handler
-  enum intr_level old_level;
-  old_level = intr_disable ();
-
-  struct list_elem *currMaxPriorityOnReadyQ_elem = list_max (&ready_list, (list_less_func *) isLowerPriority, NULL);
-  struct thread *currMaxPriorityOnReadyQ = list_entry(currMaxPriorityOnReadyQ_elem, struct thread, elem);
-
-  // If currently running thread no longer has highest priority, yield immediately
-  if (thread_current()->priority < currMaxPriorityOnReadyQ->priority) {
-    thread_yield();
-  }
-
-  // Restore interrupts 
-  intr_set_level (old_level);
-}
-
-
-/*
-Function find out the maximum priority thread in the ready list.
-*/

@@ -112,22 +112,35 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  struct list_elem * a;
-  struct thread * athread;
-
+  printf("############# Entering wait\n");
+  struct list_elem * a = 0x1234567;
+  struct thread * athread = NULL;
+  printf("############ init things\n");
   int old_level = intr_disable();
+  //ASSERT(list_begin (&all_list) != NULL);
+  printf("Lenght of all list: %d\n", list_size(&all_list));
   for (a = list_begin (&all_list); a != list_end (&all_list); a = list_next (a))
     {
+      //ASSERT(a != NULL);
+      //printf("###### LOOPING ALL \n");
       athread = list_entry (a, struct thread, allelem);
-      if(athread->tid == child_tid && athread->parent == thread_current ())
-        { //athread is currently active and not dead
+      //printf("###### list entry \n");
+      //if(athread == NULL)
+      printf("########### hex %x \n", a);
+      ASSERT(athread != NULL);
+      ASSERT(athread->tid != NULL);
+      printf("############# Name: %d\n", athread->priority);
+      if(athread->tid == child_tid && athread->parent == thread_current ()) //athread is currently active and not dead
+        { 
+          printf("########### entering IF state a \n");
           sema_down(&athread->wait_sema);
+          break;
         }
     }
   intr_set_level(old_level);
-
+  printf("2 ######################\n");
   struct list_elem * b;
   struct status_holder * astatus;
 
@@ -143,6 +156,7 @@ process_wait (tid_t child_tid UNUSED)
         }
     }
   lock_release(&status_lock);
+  printf("############# end of wait\n");
   // while (1);
   return -1;
 }
@@ -290,7 +304,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   }
 
 
-  /* Open executable file. */
+  printf("First argument: %s", argv[0]);
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {
@@ -521,9 +535,9 @@ setup_stack (void **esp, char * argv[], int argc)
   for(i = 0; i < argc; i++)
     {
       int length = strlen (argv[i]) + 1;
-		  my_esp -= length;
+      my_esp -= length;
       arg_pointers[i] = my_esp;
-		  printf("address: %x\n", my_esp);
+      printf("address: %x\n", my_esp);
       memcpy(my_esp, argv[i], length);
     }
 

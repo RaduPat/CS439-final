@@ -59,7 +59,7 @@ static inline uint64_t make_idtr_operand (uint16_t limit, void *base);
 /* Interrupt handlers. */
 void intr_handler (struct intr_frame *args);
 static void unexpected_interrupt (const struct intr_frame *);
-
+
 /* Returns the current interrupt status. */
 enum intr_level
 intr_get_level (void) 
@@ -224,7 +224,7 @@ intr_yield_on_return (void)
   ASSERT (intr_context ());
   yield_on_return = true;
 }
-
+
 /* 8259A Programmable Interrupt Controller. */
 
 /* Initializes the PICs.  Refer to [8259A] for details.

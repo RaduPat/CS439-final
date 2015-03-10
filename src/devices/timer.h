@@ -26,7 +26,4 @@ void timer_ndelay (int64_t nanoseconds);
 
 void timer_print_stats (void);
 
-// Function declaration for waking sleeping threads
-void wakeSleepingThreads_ifAny(void);
-
 #endif /* devices/timer.h */
