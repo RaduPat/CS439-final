@@ -23,15 +23,15 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
-static struct list all_list;
+//extern struct list all_list;
 
-static struct list status_list;
+extern struct list status_list;
 
-static struct semaphore exec_sema;
+//extern struct semaphore exec_sema;
+
+extern struct lock status_lock;
 
 static bool success_loadfn;
-
-static struct lock status_lock;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -44,7 +44,7 @@ process_execute (const char *cmd_line)
   tid_t tid;
 
   //Initializes the semaphore here so it blocks when it calls thread_create
-  sema_init(&exec_sema, 1);
+  //sema_init(&exec_sema, 1);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -60,7 +60,7 @@ process_execute (const char *cmd_line)
   
   success_loadfn = false;
   
-  sema_down(&exec_sema);
+  sema_down(&thread_current ()->exec_sema);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -81,14 +81,17 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-
+  ASSERT(*file_name != NULL);
+  //printf("file name: %s\n", file_name);
   success = load (file_name, &if_.eip, &if_.esp);
   success_loadfn = success;
 
+
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
   //Unblocks the parent thread
-  sema_up(&exec_sema);
+  sema_up(&thread_current ()->parent->exec_sema);
   if (!success) 
     thread_exit ();
 
@@ -114,6 +117,7 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
 int
 process_wait (tid_t child_tid) 
 {
+  /*
   printf("############# Entering wait\n");
   struct list_elem * a = 0x1234567;
   struct thread * athread = NULL;
@@ -157,7 +161,8 @@ process_wait (tid_t child_tid)
     }
   lock_release(&status_lock);
   printf("############# end of wait\n");
-  // while (1);
+	*/
+  while (1);
   return -1;
 }
 
@@ -284,7 +289,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
+  //printf("cmdline: %s\n", file_name);
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -294,17 +299,17 @@ load (const char *file_name, void (**eip) (void), void **esp)
  char *argv[MAXARGS];
  char *token, *save_ptr;
  int argcounter = 0;
-
+ //ASSERT(file_name != NULL);
  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
       token = strtok_r (NULL, " ", &save_ptr))
   {
     argv[argcounter] = token;
-    printf("Argv:%s\n", argv[argcounter]);
+    
     argcounter++;
   }
+//printf("****************************Argv:%s\n", argv[argcounter]);
 
-
-  printf("First argument: %s", argv[0]);
+  //printf("First argument: %s\n", argv[0]);
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {

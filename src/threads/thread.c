@@ -38,19 +38,16 @@ static struct thread *initial_thread;
 static struct lock tid_lock;
 
 /* Lock used to synchronize access to the file system. */
-static struct lock syscall_lock;
+struct lock syscall_lock;
 
 /* Semaphore for synchronizing access to file system. */
-static struct semaphore exec_sema;
+//struct semaphore exec_sema;
 
 /* List to hold the status structs of threads for the exit sys call */
-static struct list status_list;
+struct list status_list;
 
 /* Lock used to synchronize access to the list of statuses for dead threads */
-static struct lock status_lock;
-
-/* List of statuses for dead threads */
-static struct list status_list;
+struct lock status_lock;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -108,7 +105,6 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   lock_init(&syscall_lock);
-  sema_init(&exec_sema, 0);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -493,8 +489,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   sema_init(&t->wait_sema, 0);
   ASSERT(&t->allelem != NULL);
-  printf("********************added to all list:%s \n", &t->name);
+  //printf("********************added to all list:%s \n", &t->name);
   list_push_back (&all_list, &t->allelem);
+  sema_init(&t->exec_sema, 1);
   ASSERT(all_list.head.next != NULL);
 }
 
