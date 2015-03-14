@@ -10,17 +10,12 @@ void halt_h(void);
 void exit_h (int status);
 tid_t exec_h (const char *cmd_line);
 
-extern struct list status_list;
-extern struct lock status_lock;
-
 static struct lock syscall_lock;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&status_lock);
-  list_init(&status_list);
   lock_init(&syscall_lock);
 }
 
@@ -73,14 +68,8 @@ halt_h (void)
 void
 exit_h (int status)
 {  
-		struct status_holder new_status;
-		new_status.tid = thread_current()->tid;
-		new_status.status = status;
-		new_status.ptr_to_parent = thread_current()->parent; 
-		lock_acquire(&status_lock);
-		list_push_front(&status_list, &new_status.status_elem); 
-		lock_release(&status_lock);
-		thread_exit ();
+	thread_current()->stat_holder->status = status;
+	thread_exit();
 }
 
 tid_t

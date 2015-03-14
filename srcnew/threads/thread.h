@@ -30,9 +30,9 @@ typedef int tid_t;
   {
     tid_t tid;
     int status;
-    struct list_elem status_elem;
     struct list_elem child_elem;
-    //struct thread * ptr_to_parent;
+    struct thread * owner_thread; // the thread that owns this status holder
+    bool isalive;
   };
 
 
@@ -108,7 +108,11 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     struct semaphore exec_sema;
-    struct thread *parent;
+    struct status_holder *stat_holder;   /* Pointer to the thread's status holder (held in its parent) */
+    struct list list_of_children;         /* list of children */
+    struct thread * parent;               /* ptr to parent */
+    struct semaphore wait_sema;
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

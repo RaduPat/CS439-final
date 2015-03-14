@@ -94,10 +94,32 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  while(1);
+  struct list_elem * e;
+  for (e = list_begin (&thread_current()->list_of_children); e != list_end (&thread_current()->list_of_children); e = list_next (e))
+    {
+      ASSERT(e != NULL);
+      printf("##### %x\n", e);
+      struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
+      ASSERT(s_holder != NULL);
+      printf("##### %x\n", s_holder);
+      if (s_holder->tid == child_tid)
+      {
+        if (s_holder->isalive)
+        {
+          sema_down(&(s_holder->owner_thread)->wait_sema);
+        }
+
+        //remove the status_holder (reap the child)
+        list_remove(&s_holder->child_elem);
+
+        return s_holder->status;
+      }
+    }
   return -1;
+  //while(1);
+  //return -1;
 }
 
 /* Free the current process's resources. */

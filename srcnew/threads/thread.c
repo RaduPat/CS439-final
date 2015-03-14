@@ -191,6 +191,18 @@ thread_create (const char *name, int priority,
    //set parent
   t->parent = thread_current();
 
+  //create status holder
+  struct status_holder current_statusholder;
+  current_statusholder.status = -1;
+  current_statusholder.isalive = true;
+  current_statusholder.tid = tid;
+  current_statusholder.owner_thread = t;
+
+  //link status holder to thread
+  t->stat_holder = &current_statusholder;
+
+  list_push_back(&thread_current()->list_of_children, &current_statusholder.child_elem);
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -305,9 +317,11 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+  thread_current()->stat_holder->isalive = false;
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+  sema_up(&thread_current()->wait_sema);
   schedule ();
   NOT_REACHED ();
 }
@@ -478,7 +492,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  list_init(&t->list_of_children);
+
   sema_init(&t->exec_sema, 1);
+  sema_init(&t->wait_sema, 0);
   
   list_push_back (&all_list, &t->allelem);
 }
