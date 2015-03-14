@@ -43,10 +43,16 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-
+  printf("||||||  TID: %d\n", tid);
   success_loadfn = false;
   sema_down(&thread_current()->exec_sema);
-  if (tid == TID_ERROR)
+  if(success_loadfn){
+    printf("SUCCESS!\n");
+  }
+  else{
+    printf("LOADING OF THE PROCESS HAS FAILED!\n");
+  }
+if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
 }
@@ -59,6 +65,9 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  
+  printf("$$$$$$$ %x", thread_current()->stat_holder);
+  printf("$$$$$$$$$$ %x", &(thread_current()->stat_holder)->child_elem);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -248,6 +257,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
+  printf("======= 1\n");
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -266,13 +276,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 
   /* Open executable file. */
-  file = filesys_open (argv[0]);  
+  file = filesys_open (argv[0]);
+  printf("======= 2 %s\n",argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-
+  printf("======= 3\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -285,7 +296,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-
+  printf("======= 4\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -344,7 +355,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
+  printf("======= 5\n");
   /* Set up stack. */
   if (!setup_stack (esp, argv, argcounter))
     goto done;

@@ -202,6 +202,9 @@ thread_create (const char *name, int priority,
   t->stat_holder = &current_statusholder;
 
   list_push_back(&thread_current()->list_of_children, &current_statusholder.child_elem);
+  printf("******* %x \n", &current_statusholder.child_elem);
+  printf("********* %x \n", &current_statusholder);
+  printf("*********** %x \n", thread_current());
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -494,7 +497,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   list_init(&t->list_of_children);
 
-  sema_init(&t->exec_sema, 1);
+  sema_init(&t->exec_sema, 0);
   sema_init(&t->wait_sema, 0);
   
   list_push_back (&all_list, &t->allelem);
