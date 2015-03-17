@@ -202,12 +202,12 @@ thread_create (const char *name, int priority,
   t->stat_holder = current_statusholder;
 
   list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
-  printf("******* %x \n", &current_statusholder->child_elem);
+  /*printf("******* %x \n", &current_statusholder->child_elem);
   printf("********* %x \n", current_statusholder);
   printf("*********** %x \n", thread_current());
   printf("************ %d \n", current_statusholder->tid);
   printf("************* Parent Name: %s \n", thread_current()->name);
-  printf("************** Current thread address: %x \n", t);
+  printf("************** Current thread address: %x \n", t);*/
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -499,9 +499,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   list_init(&t->list_of_children);
+  list_init (&t->open_files);
 
   sema_init(&t->exec_sema, 0);
   sema_init(&t->wait_sema, 0);
+
+  t->allocate_fd = 2;
   
   list_push_back (&all_list, &t->allelem);
 }

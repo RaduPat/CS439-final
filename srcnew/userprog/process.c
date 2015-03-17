@@ -43,15 +43,15 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  printf("||||||  TID: %d\n", tid);
+  //printf("||||||  TID: %d\n", tid);
   success_loadfn = false;
   sema_down(&thread_current()->exec_sema);
-  if(success_loadfn){
+  /*if(success_loadfn){
     printf("SUCCESS!\n");
   }
   else{
     printf("LOADING OF THE PROCESS HAS FAILED!\n");
-  }
+  }*/
 if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -66,8 +66,8 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
   
-  printf("$$$$$$$ %x", thread_current()->stat_holder);
-  printf("$$$$$$$$$$ %x", &(thread_current()->stat_holder)->child_elem);
+  /*printf("$$$$$$$ %x", thread_current()->stat_holder);
+  printf("$$$$$$$$$$ %x", &(thread_current()->stat_holder)->child_elem);*/
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -109,14 +109,14 @@ process_wait (tid_t child_tid)
   for (e = list_begin (&thread_current()->list_of_children); e != list_end (&thread_current()->list_of_children); e = list_next (e))
     {
       ASSERT(e != NULL);
-      printf("##### %x\n", e);
+      //printf("##### %x\n", e);
       struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
       ASSERT(s_holder != NULL);
-      printf("##### %x\n", s_holder);
+      /*printf("##### %x\n", s_holder);
       printf("##### %x\n", s_holder->owner_thread);
 
       printf("### ### requested TID: %d\n", child_tid);
-      printf("### ### current TID: %d\n", s_holder->tid);
+      printf("### ### current TID: %d\n", s_holder->tid);*/
       if (s_holder->tid == child_tid)
       {
         if (s_holder->isalive)
@@ -261,7 +261,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
-  printf("======= 1\n");
+ // printf("======= 1\n");
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -274,20 +274,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
       token = strtok_r (NULL, " ", &save_ptr))
   {
     argv[argcounter] = token;
-    printf("Argv:%s\n", argv[argcounter]);
+    //printf("Argv:%s\n", argv[argcounter]);
     argcounter++;
   }
 
 
   /* Open executable file. */
   file = filesys_open (argv[0]);
-  printf("======= 2 %s\n",argv[0]);
+  //printf("======= 2 %s\n",argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-  printf("======= 3\n");
+  //printf("======= 3\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -300,7 +300,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-  printf("======= 4\n");
+  //printf("======= 4\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -359,7 +359,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-  printf("======= 5\n");
+  //printf("======= 5\n");
   /* Set up stack. */
   if (!setup_stack (esp, argv, argcounter))
     goto done;
@@ -514,7 +514,7 @@ setup_stack (void **esp, char * argv[], int argc)
     int length = strlen (argv[i]) + 1;
     my_esp -= length;
     arg_pointers[i] = my_esp;
-    printf("address: %x\n", my_esp);
+    //printf("address: %x\n", my_esp);
     memcpy(my_esp, argv[i], length);
     // my_esp = argv[i];
    }
@@ -554,7 +554,7 @@ setup_stack (void **esp, char * argv[], int argc)
                                          
    *esp = (void *) ptrSize4;
    //ASSERT(0);
-   hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
+   //hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   return success;
 }

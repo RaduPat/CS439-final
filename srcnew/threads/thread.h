@@ -112,6 +112,8 @@ struct thread
     struct list list_of_children;         /* list of children */
     struct thread * parent;               /* ptr to parent */
     struct semaphore wait_sema;
+    struct list open_files;              /* list that hold all open files containing file descriptors */
+    int allocate_fd;                     /* # calls to file open, starting from 2 */
 
 
 #ifdef USERPROG
