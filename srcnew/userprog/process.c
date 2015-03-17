@@ -113,6 +113,10 @@ process_wait (tid_t child_tid)
       struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
       ASSERT(s_holder != NULL);
       printf("##### %x\n", s_holder);
+      printf("##### %x\n", s_holder->owner_thread);
+
+      printf("### ### requested TID: %d\n", child_tid);
+      printf("### ### current TID: %d\n", s_holder->tid);
       if (s_holder->tid == child_tid)
       {
         if (s_holder->isalive)

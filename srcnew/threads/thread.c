@@ -37,8 +37,6 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
-struct list status_list;
-
 struct lock status_lock;
 
 /* Stack frame for kernel_thread(). */
@@ -192,19 +190,24 @@ thread_create (const char *name, int priority,
   t->parent = thread_current();
 
   //create status holder
-  struct status_holder current_statusholder;
-  current_statusholder.status = -1;
-  current_statusholder.isalive = true;
-  current_statusholder.tid = tid;
-  current_statusholder.owner_thread = t;
+  struct status_holder * current_statusholder;
+  current_statusholder = palloc_get_page(PAL_ZERO);
+  memset (current_statusholder, 0, sizeof (struct status_holder));
+  current_statusholder->status = -1;
+  current_statusholder->isalive = true;
+  current_statusholder->tid = tid;
+  current_statusholder->owner_thread = t;
 
   //link status holder to thread
-  t->stat_holder = &current_statusholder;
+  t->stat_holder = current_statusholder;
 
-  list_push_back(&thread_current()->list_of_children, &current_statusholder.child_elem);
-  printf("******* %x \n", &current_statusholder.child_elem);
-  printf("********* %x \n", &current_statusholder);
+  list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
+  printf("******* %x \n", &current_statusholder->child_elem);
+  printf("********* %x \n", current_statusholder);
   printf("*********** %x \n", thread_current());
+  printf("************ %d \n", current_statusholder->tid);
+  printf("************* Parent Name: %s \n", thread_current()->name);
+  printf("************** Current thread address: %x \n", t);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -320,11 +323,11 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+  sema_up(&thread_current()->wait_sema);
   thread_current()->stat_holder->isalive = false;
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
-  sema_up(&thread_current()->wait_sema);
   schedule ();
   NOT_REACHED ();
 }
