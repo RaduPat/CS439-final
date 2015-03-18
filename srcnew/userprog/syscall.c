@@ -3,12 +3,27 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
 void halt_h(void);
 void exit_h (int status);
-tid_t exec_h (const char *cmd_line);
+tid_t exec_h (char *cmd_line);
+int wait_h (tid_t tid);
+bool create_h (char *file, unsigned initial_size);
+bool remove_h (char *file);
+int open_h (char *file);
+int filesize_h (int file_descriptor);
+int read_h (int file_descriptor, void *buffer, unsigned size);
+int write_h (int file_descriptor, void *buffer, unsigned size);
+int seek_h (int file_descriptor, unsigned position);
+unsigned tell_h (int file_descriptor);
+int close_h (int file_descriptor);
+
+struct file * find_open_file (int fd);
 
 static struct lock syscall_lock;
 
@@ -48,37 +63,37 @@ syscall_handler (struct intr_frame *f UNUSED)
   	case SYS_EXEC:
 		{
 			const char *cmd_line = (char *) (esp_int_pointer+1);
-			f->eax = (uint32_t) exec_h (cmd_line);
+			f->eax = exec_h (cmd_line);
 		}
   		break;
   	case SYS_WAIT:
   		{
   			tid_t tid = (tid_t) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) wait_h(tid);
+  			f->eax = wait_h(tid);
   		}
   		break;
   	case SYS_CREATE:
   		{
   			const char *file = (char *) *(esp_int_pointer+1);
   			unsigned initial_size = (unsigned) *(esp_int_pointer+2);
-  			f->eax = (uint32_t) create_h(file, initial_size);
+  			f->eax = create_h(file, initial_size);
   		}
   	case SYS_REMOVE:
   		{
   			const char *file = (char *) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) remove_h(file);
+  			f->eax = remove_h(file);
   		}
   		break;
   	case SYS_OPEN:
   		{
   			const char *file = (char *) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) open_h(file);
+  			f->eax = open_h(file);
   		}
   		break;
   	case SYS_FILESIZE:
   		{
   			int file_descriptor = (int) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) filesize_h(file_descriptor);
+  			f->eax = filesize_h(file_descriptor);
   		}
   		break;
   	case SYS_READ:
@@ -86,7 +101,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			void *buffer = (void *) *(esp_int_pointer+2);
   			unsigned size = (unsigned) *(esp_int_pointer+3);
-  			f->eax = (uint32_t) read_h (file_descriptor, buffer, size);
+  			f->eax = read_h (file_descriptor, buffer, size);
   		}
   		break;
   	case SYS_WRITE:
@@ -94,24 +109,24 @@ syscall_handler (struct intr_frame *f UNUSED)
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			const void *buffer = (void *) *(esp_int_pointer+2);
   			unsigned size = (unsigned) *(esp_int_pointer+3);
-  			f->eax = (uint32_t) write_h (file_descriptor, buffer, size);
+  			f->eax = write_h (file_descriptor, buffer, size);
   		}
   		break;
   	case SYS_SEEK:
   		{
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			unsigned pos = (unsigned) *(esp_int_pointer+2);
-  			f->eax = (uint32_t) seek_h (file_descriptor, pos);
+  			f->eax = seek_h (file_descriptor, pos);
   		}
   	case SYS_TELL:
   		{
   			int file_descriptor = (int) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) tell_h (file_descriptor);
+  			f->eax = tell_h (file_descriptor);
   		}
   	case SYS_CLOSE:
   		{
   			int file_descriptor = (int) *(esp_int_pointer+1);
-  			f->eax = (uint32_t) close_h (file_descriptor);
+  			f->eax = close_h (file_descriptor);
   		}
 
   	
@@ -135,7 +150,7 @@ exit_h (int status)
 }
 
 tid_t
-exec_h (const char *cmd_line)
+exec_h (char *cmd_line)
 {
 	lock_acquire(&syscall_lock);
 	tid_t tid = process_execute(cmd_line);
@@ -150,7 +165,7 @@ wait_h (tid_t tid)
 }
 
 bool
-create_h (const char *file, unsigned initial_size) 
+create_h (char *file, unsigned initial_size) 
 {
 	lock_acquire(&syscall_lock);
 	bool success = filesys_create(file, initial_size);
@@ -159,7 +174,7 @@ create_h (const char *file, unsigned initial_size)
 }
 
 bool
-remove_h (const char *file)
+remove_h (char *file)
 {
 	lock_acquire(&syscall_lock);
 	bool success = filesys_remove(file);
@@ -168,24 +183,25 @@ remove_h (const char *file)
 }
 
 int
-open_h (const char *file)
+open_h (char *file)
 {
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
 	lock_release(&syscall_lock);
 	open_file->fd = (thread_current()->allocate_fd)++;
 	list_push_back (&thread_current()->open_files, &open_file->open_elem);
-	return success;
+	return open_file->fd;
 }
 
 int 
 filesize_h (int file_descriptor)
 {
 	struct file *found_file = find_open_file (file_descriptor);
+	int file_size;
 	if(found_file != NULL)
-		int file_size = file_length (found_file);
+		file_size = file_length (found_file);
 	else
-		int file_size = -1;
+		file_size = -1;
 	return file_size;
 }
 
@@ -210,7 +226,7 @@ read_h (int file_descriptor, void *buffer, unsigned size)
 			if(found_file != NULL) 
 			{
 				lock_acquire (&syscall_lock);
-				bytes_read = file_read (found_file, buffer, (off_t) size);
+				bytes_read = file_read (found_file, buffer, size);
 				lock_release (&syscall_lock);
 			}
 			return bytes_read;
@@ -218,7 +234,7 @@ read_h (int file_descriptor, void *buffer, unsigned size)
 }
 
 int
-write_h (int file_descriptor, const void *buffer, unsigned size)
+write_h (int file_descriptor, void *buffer, unsigned size)
 {
 	if(file_descriptor == STDOUT_FILENO)
 		{
@@ -232,7 +248,7 @@ write_h (int file_descriptor, const void *buffer, unsigned size)
 			if (found_file != NULL)
 				{
 					lock_acquire (&syscall_lock);
-					bytes_written = file_write (found_file, buffer, (off_t) size);
+					bytes_written = file_write (found_file, buffer, size);
 					lock_release (&syscall_lock);
 				}
 			return bytes_written;
@@ -257,8 +273,7 @@ tell_h (int file_descriptor)
 	struct file *found_file = find_open_file (file_descriptor);
 	if(found_file != NULL)
 	{
-		off_t position = found_file->pos;
-		return (unsigned) position;
+		return found_file->pos;
 	}
 	return -1;
 }
