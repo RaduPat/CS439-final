@@ -325,6 +325,7 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   sema_up(&thread_current()->wait_sema);
   thread_current()->stat_holder->isalive = false;
+  printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->stat_holder->status);
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;

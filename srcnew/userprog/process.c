@@ -42,7 +42,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);// we're changing the name to just the executable path in load()
   //printf("||||||  TID: %d\n", tid);
   success_loadfn = false;
   sema_down(&thread_current()->exec_sema);
@@ -277,7 +277,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     //printf("Argv:%s\n", argv[argcounter]);
     argcounter++;
   }
-
+  strlcpy (t->name, argv[0], sizeof t->name);
 
   /* Open executable file. */
   file = filesys_open (argv[0]);
