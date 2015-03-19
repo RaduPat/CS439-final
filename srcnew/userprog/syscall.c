@@ -37,12 +37,9 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("system call!\n");
-
   int *esp_int_pointer = (int*) f->esp;
 	
   int syscall_number = *esp_int_pointer;
-  printf ("system call!\n");
   switch (syscall_number) 
   {
   	
@@ -128,10 +125,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			f->eax = close_h (file_descriptor);
   		}
-
-  	
   }
-  thread_exit ();
 }
 
 void
@@ -210,7 +204,7 @@ read_h (int file_descriptor, void *buffer, unsigned size)
 {
 	if(file_descriptor == STDIN_FILENO)
 		{
-			uint8_t new_buffer = (uint8_t *) buffer;
+			uint8_t *new_buffer = (uint8_t *) buffer;
 			int i;
 			for (i = 0; i < size; i++)
 				{
