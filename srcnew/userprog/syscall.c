@@ -10,6 +10,8 @@
 
 static void syscall_handler (struct intr_frame *);
 
+void set_denywrite (bool);
+
 void halt_h(void);
 void exit_h (int status);
 tid_t exec_h (char *cmd_line);
@@ -26,13 +28,20 @@ int close_h (int file_descriptor);
 
 struct file * find_open_file (int fd);
 
+/* lock to synchronize access to the filesystem */
 static struct lock syscall_lock;
+
+/* list of all open files and a lock to synchronize access to it */
+static struct list all_open_files;
+static struct lock lock_allopenfiles;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&syscall_lock);
+  lock_init(&lock_allopenfiles);
+  list_init(&all_open_files);
 }
 
 static void
@@ -171,6 +180,7 @@ exec_h (char *cmd_line)
 	lock_acquire(&syscall_lock);
 	tid_t tid = process_execute(cmd_line);
 	lock_release(&syscall_lock);
+
 	return tid;
 }
 
@@ -206,10 +216,17 @@ open_h (char *file)
 	check_pointer(file);
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
-	file_deny_write (open_file);
 	lock_release(&syscall_lock);
+	if (isAliveThread(file))
+	{
+		file_deny_write(open_file);
+	}
 	open_file->fd = (thread_current()->allocate_fd)++;
 	list_push_back (&thread_current()->open_files, &open_file->open_elem);
+	strlcpy (open_file->name, file, sizeof open_file->name);
+	lock_acquire(&lock_allopenfiles);
+	list_push_back (&all_open_files, &open_file->allopen_elem);
+	lock_release(&lock_allopenfiles);
 	return open_file->fd;
 }
 
@@ -310,10 +327,10 @@ close_h (int file_descriptor)
 	else
 		return -1;
 
-	lock_acquire(&syscall_lock);
-	file_allow_write (found_file);
+	lock_acquire(&lock_allopenfiles);
+	list_remove(&found_file->allopen_elem);
+	lock_release(&lock_allopenfiles);
 	free(found_file);
-	lock_release (&syscall_lock);
 	return 1;
 }
 
@@ -330,7 +347,6 @@ find_open_file (int fd)
     return NULL;
 }
 
-
 void
 check_pointer (void *pointer)
 {
@@ -341,4 +357,23 @@ check_pointer (void *pointer)
 	//exit_h will handle freeing the page and closing the process
 }
 
+void
+set_denywrite(bool shouldSet_denywrite){
+	lock_acquire(&lock_allopenfiles);
+	struct list_elem * e;
+  	for (e = list_begin (&all_open_files); e != list_end (&all_open_files); e = list_next (e))
+    	{
+    		struct file *f = list_entry (e, struct file, allopen_elem);
+    		if(!strcmp(thread_current()->name, f->name)){
+    			if (shouldSet_denywrite)
+    			{
+    				file_deny_write(f);
+    			}
+    			else{
+    				file_allow_write(f);
+    			}
+    		}
+    	}
+	lock_release(&lock_allopenfiles);
+}
 

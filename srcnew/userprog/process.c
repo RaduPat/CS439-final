@@ -24,6 +24,8 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 static bool success_loadfn;
 
+void set_denywrite (bool);
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -41,6 +43,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  printf("$$$$$$$$$$ %s\n", file_name);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);// we're changing the name to just the executable path in load()
   //printf("||||||  TID: %d\n", tid);
@@ -74,6 +77,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  printf("####### %s\n", file_name);
   success = load (file_name, &if_.eip, &if_.esp);
   success_loadfn = success;
 
@@ -270,6 +274,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  char *token, *save_ptr;
  int argcounter = 0;
 
+  printf("@@@@@@@@@@@ %s\n", file_name);
  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
       token = strtok_r (NULL, " ", &save_ptr))
   {
@@ -277,14 +282,20 @@ load (const char *file_name, void (**eip) (void), void **esp)
     //printf("Argv:%s\n", argv[argcounter]);
     argcounter++;
   }
+
+  // setting the correct name of the thread
   strlcpy (t->name, argv[0], sizeof t->name);
 
+  // denying writes to all files currently open with the same name
+  set_denywrite(true);
+
+  printf("&&&&&&&&&&&& %s\n", argv[0]);
   /* Open executable file. */
   file = filesys_open (argv[0]);
   //printf("======= 2 %s\n",argv[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", argv[0]);
       goto done; 
     }
   //printf("======= 3\n");

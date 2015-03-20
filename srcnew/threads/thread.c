@@ -37,7 +37,9 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
-struct lock status_lock;
+void set_denywrite (bool);
+
+
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -325,6 +327,7 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   sema_up(&thread_current()->wait_sema);
   thread_current()->stat_holder->isalive = false;
+  set_denywrite(false);// allowing writes to all files with matching name
   printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->stat_holder->status);
   intr_disable ();
   list_remove (&thread_current()->allelem);
@@ -623,3 +626,18 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+bool
+isAliveThread(char * threadName){
+  struct list_elem *e;
+
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (!strcmp(t->name, threadName))
+      {
+        return true;
+      }
+    }
+  return false;
+}
