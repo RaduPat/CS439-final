@@ -22,7 +22,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-static bool success_loadfn;
 
 void set_denywrite (bool);
 
@@ -43,18 +42,15 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  printf("$$$$$$$$$$ %s\n", file_name);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);// we're changing the name to just the executable path in load()
-  //printf("||||||  TID: %d\n", tid);
-  success_loadfn = false;
+
+  thread_current()->childExecSuccess = false;
   sema_down(&thread_current()->exec_sema);
-  /*if(success_loadfn){
-    printf("SUCCESS!\n");
+
+  if(!thread_current()->childExecSuccess){
+    return TID_ERROR;
   }
-  else{
-    printf("LOADING OF THE PROCESS HAS FAILED!\n");
-  }*/
 if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -77,9 +73,8 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  printf("####### %s\n", file_name);
   success = load (file_name, &if_.eip, &if_.esp);
-  success_loadfn = success;
+  thread_current()->parent->childExecSuccess = success;
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -265,7 +260,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
- // printf("======= 1\n");
+  //printf("======= 1\n");
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -274,7 +269,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
  char *token, *save_ptr;
  int argcounter = 0;
 
-  printf("@@@@@@@@@@@ %s\n", file_name);
  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
       token = strtok_r (NULL, " ", &save_ptr))
   {
@@ -289,7 +283,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // denying writes to all files currently open with the same name
   set_denywrite(true);
 
-  printf("&&&&&&&&&&&& %s\n", argv[0]);
   /* Open executable file. */
   file = filesys_open (argv[0]);
   //printf("======= 2 %s\n",argv[0]);

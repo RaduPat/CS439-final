@@ -105,15 +105,16 @@ consume_some_resources_and_die (int seed)
 int
 main (int argc, char *argv[])
 {
-  int n;
+  return 0;
+/*  int n;
 
   n = argc > 1 ? atoi (argv[1]) : 0;
   bool is_at_root = (n == 0);
   if (is_at_root)
-    msg ("begin");
+    msg ("begin");*/
 
   /* If -k is passed, crash this process. */
-  if (argc > 2 && !strcmp(argv[2], "-k"))
+  /*if (argc > 2 && !strcmp(argv[2], "-k"))
     {
       consume_some_resources_and_die (n);
       NOT_REACHED ();
@@ -121,42 +122,42 @@ main (int argc, char *argv[])
 
   int howmany = is_at_root ? EXPECTED_REPETITIONS : 1;
   int i, expected_depth = -1;
-
-  for (i = 0; i < howmany; i++)
+for
+   (i = 0; i < howmany; i++)
     {
-      pid_t child_pid;
+      pid_t child_pid;*/
 
       /* Spawn a child that will be abnormally terminated.
          To speed the test up, do this only for processes
          spawned at a certain depth. */
-      if (n > EXPECTED_DEPTH_TO_PASS/2)
+     /* if (n > EXPECTED_DEPTH_TO_PASS/2)
         {
           child_pid = spawn_child (n + 1, CRASH);
           if (child_pid != -1)
             {
               if (wait (child_pid) != -1)
                 fail ("crashed child should return -1.");
-            }
+            }*/
           /* If spawning this child failed, so should
              the next spawn_child below. */
-        }
+       // }
 
       /* Now spawn the child that will recurse. */
-      child_pid = spawn_child (n + 1, RECURSE);
+      //child_pid = spawn_child (n + 1, RECURSE);
 
       /* If maximum depth is reached, return result. */
-      if (child_pid == -1)
-        return n;
+      //if (child_pid == -1)
+       // return n;
 
       /* Else wait for child to report how deeply it was able to recurse. */
-      int reached_depth = wait (child_pid);
-      if (reached_depth == -1)
-        fail ("wait returned -1.");
+      //int reached_depth = wait (child_pid);
+      //if (reached_depth == -1)
+        //fail ("wait returned -1.");
 
       /* Record the depth reached during the first run; on subsequent
          runs, fail if those runs do not match the depth achieved on the
          first run. */
-      if (i == 0)
+      /*if (i == 0)
         expected_depth = reached_depth;
       else if (expected_depth != reached_depth)
         fail ("after run %d/%d, expected depth %d, actual depth %d.",
@@ -174,6 +175,6 @@ main (int argc, char *argv[])
       msg ("end");
     }
 
-  return expected_depth;
+  return expected_depth;*/
 }
 // vim: sw=2

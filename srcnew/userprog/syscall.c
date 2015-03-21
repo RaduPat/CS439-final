@@ -73,8 +73,8 @@ syscall_handler (struct intr_frame *f UNUSED)
   	case SYS_EXEC:
 		{
 			check_pointer(esp_int_pointer+1);
-			const char *cmd_line = (char *) (esp_int_pointer+1);
-			f->eax = exec_h (cmd_line);
+			const char **cmd_line = (char **) (esp_int_pointer+1);
+			f->eax = exec_h (*cmd_line);
 		}
   		break;
   	case SYS_WAIT:
@@ -88,22 +88,29 @@ syscall_handler (struct intr_frame *f UNUSED)
   		{
   			check_pointer(esp_int_pointer+1);
   			check_pointer(esp_int_pointer+2);
-  			const char *file = (char *) *(esp_int_pointer+1);
+  			const char **file = (char **) (esp_int_pointer+1);
   			unsigned initial_size = (unsigned) *(esp_int_pointer+2);
-  			f->eax = create_h(file, initial_size);
+  			f->eax = create_h(*file, initial_size);
+  			if (f->eax)	
+  			{
+  				//printf("^^^^^^^^^^^ file create success in switch\n");
+  			}
+  			else{
+  				//printf("^^^^^^^^^^^ file create failed in switch\n");
+  			}
   		}
   	case SYS_REMOVE:
   		{
   			check_pointer(esp_int_pointer+1);
-  			const char *file = (char *) *(esp_int_pointer+1);
-  			f->eax = remove_h(file);
+  			const char **file = (char **) (esp_int_pointer+1);
+  			f->eax = remove_h(*file);
   		}
   		break;
   	case SYS_OPEN:
   		{
   			check_pointer(esp_int_pointer+1);
-  			const char *file = (char *) *(esp_int_pointer+1);
-  			f->eax = open_h(file);
+  			const char **file = (char **)(esp_int_pointer+1);
+  			f->eax = open_h(*file);
   		}
   		break;
   	case SYS_FILESIZE:
@@ -119,9 +126,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   			check_pointer(esp_int_pointer+2);
   			check_pointer(esp_int_pointer+3);
   			int file_descriptor = (int) *(esp_int_pointer+1);
-  			void *buffer = (void *) *(esp_int_pointer+2);
+  			void **buffer = (void **) (esp_int_pointer+2);
   			unsigned size = (unsigned) *(esp_int_pointer+3);
-  			f->eax = read_h (file_descriptor, buffer, size);
+  			f->eax = read_h (file_descriptor, *buffer, size);
   		}
   		break;
   	case SYS_WRITE:
@@ -130,9 +137,9 @@ syscall_handler (struct intr_frame *f UNUSED)
   			check_pointer(esp_int_pointer+2);
   			check_pointer(esp_int_pointer+3);
   			int file_descriptor = (int) *(esp_int_pointer+1);
-  			const void *buffer = (void *) *(esp_int_pointer+2);
+  			const void **buffer = (void **) (esp_int_pointer+2);
   			unsigned size = (unsigned) *(esp_int_pointer+3);
-  			f->eax = write_h (file_descriptor, buffer, size);
+  			f->eax = write_h (file_descriptor, *buffer, size);
   		}
   		break;
   	case SYS_SEEK:
@@ -194,10 +201,17 @@ bool
 create_h (char *file, unsigned initial_size) 
 {
 	check_pointer(file);
+	//printf("^^^^^^^^ file name %s\n", file);
 	lock_acquire(&syscall_lock);
 	bool success = filesys_create(file, initial_size);
 	lock_release(&syscall_lock);
-	return success;
+	if(success){
+		//printf("^^^^^^^^ file created\n");
+	}
+	else{
+		//printf("^^^^^^^^ file not created\n");
+	}
+	return success ? 1 : 0;
 }
 
 bool
@@ -217,6 +231,9 @@ open_h (char *file)
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
 	lock_release(&syscall_lock);
+	if (open_file == NULL){
+		return -1;
+	}
 	if (isAliveThread(file))
 	{
 		file_deny_write(open_file);

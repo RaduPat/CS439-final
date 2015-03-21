@@ -107,7 +107,8 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-    struct semaphore exec_sema;
+    struct semaphore exec_sema;           /* semaphore to check if a program has been loaded and return only after confirming that */
+    bool childExecSuccess;                 /* has child been loaded successfully? */
     struct status_holder *stat_holder;   /* Pointer to the thread's status holder (held in its parent) */
     struct list list_of_children;         /* list of children */
     struct thread * parent;               /* ptr to parent */
