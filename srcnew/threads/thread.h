@@ -24,6 +24,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define MAX_FILES 128
 
  //struct for holding the tid of a thread that calls exit and its corresponding status
   static struct status_holder
@@ -113,8 +114,8 @@ struct thread
     struct list list_of_children;         /* list of children */
     struct thread * parent;               /* ptr to parent */
     struct semaphore wait_sema;
-    struct list open_files;              /* list that hold all open files containing file descriptors */
-    int allocate_fd;                     /* # calls to file open, starting from 2 */
+    struct file * open_files[MAX_FILES];  /* list that hold all open files containing file descriptors */
+    int index_fd;                         /* # calls to file open, starting from 2 */
 
 
 #ifdef USERPROG

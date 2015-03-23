@@ -503,12 +503,16 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   list_init(&t->list_of_children);
-  list_init (&t->open_files);
 
   sema_init(&t->exec_sema, 0);
   sema_init(&t->wait_sema, 0);
 
-  t->allocate_fd = 2;
+  t->index_fd = 2;
+  int i;
+  for(i = 0; i < sizeof(t->open_files); i++)
+    {
+      t->open_files[i] = NULL;
+    }
   
   list_push_back (&all_list, &t->allelem);
 }

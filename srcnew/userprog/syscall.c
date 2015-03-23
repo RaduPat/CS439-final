@@ -8,9 +8,12 @@
 #include "userprog/process.h"
 #include "threads/vaddr.h"
 
+#define MAX_FILES 128
+
 static void syscall_handler (struct intr_frame *);
 
 void set_denywrite (bool);
+
 
 void halt_h(void);
 void exit_h (int status);
@@ -25,6 +28,7 @@ int write_h (int file_descriptor, void *buffer, unsigned size);
 int seek_h (int file_descriptor, unsigned position);
 unsigned tell_h (int file_descriptor);
 int close_h (int file_descriptor);
+void check_pointer (void *pointer);
 
 struct file * find_open_file (int fd);
 
@@ -32,16 +36,20 @@ struct file * find_open_file (int fd);
 static struct lock syscall_lock;
 
 /* list of all open files and a lock to synchronize access to it */
-static struct list all_open_files;
+//static struct list all_open_files;
 static struct lock lock_allopenfiles;
+
+/* array to keep track of open files globally */
+struct file * all_open_files[MAX_FILES];  
+int index_glob; 
 
 void
 syscall_init (void) 
 {
+  index_glob = 0;
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&syscall_lock);
   lock_init(&lock_allopenfiles);
-  list_init(&all_open_files);
 }
 
 static void
@@ -201,17 +209,16 @@ bool
 create_h (char *file, unsigned initial_size) 
 {
 	check_pointer(file);
-	//printf("^^^^^^^^ file name %s\n", file);
+	printf("^^^^^^^^ file name %s***********\n", file);
+	bool success = false;
 	lock_acquire(&syscall_lock);
-	bool success = filesys_create(file, initial_size);
+	printf("lock acquire\n");
+	success = filesys_create(file, (off_t) initial_size);
+	printf("lock release\n");
 	lock_release(&syscall_lock);
-	if(success){
-		//printf("^^^^^^^^ file created\n");
-	}
-	else{
-		//printf("^^^^^^^^ file not created\n");
-	}
-	return success ? 1 : 0;
+
+	printf("success = %d\n", success);
+	return success;
 }
 
 bool
@@ -238,11 +245,11 @@ open_h (char *file)
 	{
 		file_deny_write(open_file);
 	}
-	open_file->fd = (thread_current()->allocate_fd)++;
-	list_push_back (&thread_current()->open_files, &open_file->open_elem);
-	strlcpy (open_file->name, file, sizeof open_file->name);
+	//strlcpy (open_file->name, file, sizeof open_file->name);
+	
+	assign_fd(thread_current () -> index_fd, thread_current () -> open_files);
 	lock_acquire(&lock_allopenfiles);
-	list_push_back (&all_open_files, &open_file->allopen_elem);
+	assign_fd(index_glob, all_open_files);
 	lock_release(&lock_allopenfiles);
 	return open_file->fd;
 }
@@ -305,6 +312,7 @@ write_h (int file_descriptor, void *buffer, unsigned size)
 				{
 					lock_acquire (&syscall_lock);
 					bytes_written = file_write (found_file, buffer, size);
+					printf("Number of bytes written in Handler: %d", bytes_written);
 					lock_release (&syscall_lock);
 				}
 			return bytes_written;
@@ -338,30 +346,19 @@ int
 close_h (int file_descriptor)
 {
 	struct file *found_file = find_open_file (file_descriptor);
-
-	if(found_file != NULL)
-		list_remove(&found_file->open_elem);
+	if(found_file != NULL) 
+		thread_current () -> open_files[file_descriptor] = NULL;
 	else
 		return -1;
-
-	lock_acquire(&lock_allopenfiles);
-	list_remove(&found_file->allopen_elem);
-	lock_release(&lock_allopenfiles);
-	free(found_file);
+	all_open_files[file_descriptor] = NULL;
+	//free(found_file);
 	return 1;
 }
 
 struct file *
 find_open_file (int fd) 
 {
-	struct list_elem * e;
-  	for (e = list_begin (&thread_current()->open_files); e != list_end (&thread_current()->open_files); e = list_next (e))
-    	{
-    		struct file *temp_file = list_entry (e, struct file, open_elem);
-    		if(temp_file->fd == fd)
-    			return temp_file;
-    	}
-    return NULL;
+	return thread_current ()->open_files[fd]; 
 }
 
 void
@@ -374,13 +371,31 @@ check_pointer (void *pointer)
 	//exit_h will handle freeing the page and closing the process
 }
 
+/*Function to iterate through an array of files to assign a file descriptor.
+Should loop around to the beginning of the array upon reaching the last index*/
 void
-set_denywrite(bool shouldSet_denywrite){
+assign_fd(int fd, file * files)
+{
+	int i;
+	for(i = 2; i < sizeof (files); i++)
+	{
+		if(files[i] == NULL)
+			files[i] = fd;
+		if(i == sizeof - 1)
+			i = 2;
+	}
+}
+
+void
+set_denywrite(bool shouldSet_denywrite) {
 	lock_acquire(&lock_allopenfiles);
 	struct list_elem * e;
-  	for (e = list_begin (&all_open_files); e != list_end (&all_open_files); e = list_next (e))
+	int i;
+
+  	for (i = 0; i< sizeof(all_open_files); i++)
     	{
-    		struct file *f = list_entry (e, struct file, allopen_elem);
+    		struct file *f = all_open_files[i];
+
     		if(!strcmp(thread_current()->name, f->name)){
     			if (shouldSet_denywrite)
     			{
@@ -393,4 +408,3 @@ set_denywrite(bool shouldSet_denywrite){
     	}
 	lock_release(&lock_allopenfiles);
 }
-

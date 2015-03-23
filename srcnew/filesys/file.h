@@ -6,18 +6,6 @@
 
 struct inode;
 
-/* An open file. */
-struct file 
-  {
-  	char name[16];				/* File's name */
-    struct inode *inode;        /* File's inode. */
-    off_t pos;                  /* Current position. */
-    bool deny_write;            /* Has file_deny_write() been called? */
-    int fd;                     /* id associated with open files */
-    struct list_elem open_elem; /* list_elem for open_files list */
-    struct list_elem allopen_elem; /* list_elem for list of all open files */
-  };
-
 /* Opening and closing files. */
 struct file *file_open (struct inode *);
 struct file *file_reopen (struct file *);
