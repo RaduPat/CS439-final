@@ -7,13 +7,14 @@
 #include "filesys/file.h"
 #include "userprog/process.h"
 #include "threads/vaddr.h"
+#include "devices/input.h"
+#include "userprog/pagedir.h"
 
 #define MAX_FILES 128
 
 static void syscall_handler (struct intr_frame *);
 
-void set_denywrite (bool);
-
+//void set_denywrite (bool);
 
 void halt_h(void);
 void exit_h (int status);
@@ -28,28 +29,22 @@ int write_h (int file_descriptor, void *buffer, unsigned size);
 int seek_h (int file_descriptor, unsigned position);
 unsigned tell_h (int file_descriptor);
 int close_h (int file_descriptor);
-void check_pointer (void *pointer);
 
+void check_pointer (void *pointer);
+void assign_fd(struct file *open_file, struct file * files[]);
 struct file * find_open_file (int fd);
+int find_fd(struct file * files[], struct file * target); 
+void shutdown_power_off(void);
 
 /* lock to synchronize access to the filesystem */
 static struct lock syscall_lock;
 
-/* list of all open files and a lock to synchronize access to it */
-//static struct list all_open_files;
-static struct lock lock_allopenfiles;
-
-/* array to keep track of open files globally */
-struct file * all_open_files[MAX_FILES];  
-int index_glob; 
-
 void
 syscall_init (void) 
 {
-  index_glob = 0;
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&syscall_lock);
-  lock_init(&lock_allopenfiles);
+  //lock_init(&lock_allopenfiles);
 }
 
 static void
@@ -209,15 +204,15 @@ bool
 create_h (char *file, unsigned initial_size) 
 {
 	check_pointer(file);
-	printf("^^^^^^^^ file name %s***********\n", file);
+	//printf("^^^^^^^^ file name %s***********\n", file);
 	bool success = false;
 	lock_acquire(&syscall_lock);
-	printf("lock acquire\n");
+	//printf("lock acquire\n");
 	success = filesys_create(file, (off_t) initial_size);
-	printf("lock release\n");
+	//printf("lock release\n");
 	lock_release(&syscall_lock);
 
-	printf("success = %d\n", success);
+	//printf("success = %d\n", success);
 	return success;
 }
 
@@ -238,20 +233,13 @@ open_h (char *file)
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
 	lock_release(&syscall_lock);
+	printf("here\n");
 	if (open_file == NULL){
 		return -1;
 	}
-	if (isAliveThread(file))
-	{
-		file_deny_write(open_file);
-	}
-	//strlcpy (open_file->name, file, sizeof open_file->name);
+	assign_fd(open_file, thread_current () -> open_files);
 	
-	assign_fd(thread_current () -> index_fd, thread_current () -> open_files);
-	lock_acquire(&lock_allopenfiles);
-	assign_fd(index_glob, all_open_files);
-	lock_release(&lock_allopenfiles);
-	return open_file->fd;
+	return find_fd(thread_current ()->open_files, open_file);
 }
 
 int 
@@ -274,7 +262,7 @@ read_h (int file_descriptor, void *buffer, unsigned size)
 		{
 			uint8_t *new_buffer = (uint8_t *) buffer;
 			int i;
-			for (i = 0; i < size; i++)
+			for (i = 0; i < (int) size; i++)
 				{
 					*new_buffer = input_getc ();
 					new_buffer++;
@@ -312,7 +300,7 @@ write_h (int file_descriptor, void *buffer, unsigned size)
 				{
 					lock_acquire (&syscall_lock);
 					bytes_written = file_write (found_file, buffer, size);
-					printf("Number of bytes written in Handler: %d", bytes_written);
+					//printf("Number of bytes written in Handler: %d", bytes_written);
 					lock_release (&syscall_lock);
 				}
 			return bytes_written;
@@ -325,7 +313,7 @@ seek_h (int file_descriptor, unsigned position)
 	struct file *found_file = find_open_file (file_descriptor);
 	if(found_file != NULL)
 	{
-		found_file->pos = position;
+		file_seek(found_file, (off_t) position);
 		return 1; //returning 1 and -1 to signify pushing to EAX
 	}
 	return -1;
@@ -337,7 +325,7 @@ tell_h (int file_descriptor)
 	struct file *found_file = find_open_file (file_descriptor);
 	if(found_file != NULL)
 	{
-		return found_file->pos;
+		return file_tell (found_file);
 	}
 	return -1;
 }
@@ -350,7 +338,6 @@ close_h (int file_descriptor)
 		thread_current () -> open_files[file_descriptor] = NULL;
 	else
 		return -1;
-	all_open_files[file_descriptor] = NULL;
 	//free(found_file);
 	return 1;
 }
@@ -358,7 +345,13 @@ close_h (int file_descriptor)
 struct file *
 find_open_file (int fd) 
 {
-	return thread_current ()->open_files[fd]; 
+	if(fd < 0 || fd >= MAX_FILES)
+		return NULL;
+	struct file *return_file = thread_current()->open_files[fd];
+	if(return_file != NULL)
+		return return_file;
+	else
+		return NULL; 
 }
 
 void
@@ -374,37 +367,30 @@ check_pointer (void *pointer)
 /*Function to iterate through an array of files to assign a file descriptor.
 Should loop around to the beginning of the array upon reaching the last index*/
 void
-assign_fd(int fd, file * files)
+assign_fd(struct file *new_file, struct file * files[])
 {
 	int i;
-	for(i = 2; i < sizeof (files); i++)
+	for(i = thread_current()->index_fd; i <  MAX_FILES ; i++)
 	{
-		if(files[i] == NULL)
-			files[i] = fd;
-		if(i == sizeof - 1)
+		if(files[i] == NULL)  {
+			files[i] = new_file;
+			thread_current()->index_fd = i;
+			break;
+		}
+		//wrap around
+		if(i == MAX_FILES - 1)
 			i = 2;
 	}
 }
 
-void
-set_denywrite(bool shouldSet_denywrite) {
-	lock_acquire(&lock_allopenfiles);
-	struct list_elem * e;
+int
+find_fd(struct file * files[], struct file * target) 
+{
 	int i;
-
-  	for (i = 0; i< sizeof(all_open_files); i++)
-    	{
-    		struct file *f = all_open_files[i];
-
-    		if(!strcmp(thread_current()->name, f->name)){
-    			if (shouldSet_denywrite)
-    			{
-    				file_deny_write(f);
-    			}
-    			else{
-    				file_allow_write(f);
-    			}
-    		}
-    	}
-	lock_release(&lock_allopenfiles);
+	for(i = 2; i <  MAX_FILES ; i++)
+	{
+		if(files[i] == target)
+			return i;
+	}
+	return -1;
 }

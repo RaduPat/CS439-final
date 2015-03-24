@@ -20,6 +20,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -328,7 +329,7 @@ thread_exit (void)
   sema_up(&thread_current()->wait_sema);
   thread_current()->stat_holder->isalive = false;
   printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->stat_holder->status);
-  set_denywrite(false);// allowing writes to all files with matching name
+  file_close(thread_current ()-> code_file);
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
@@ -508,12 +509,14 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->wait_sema, 0);
 
   t->index_fd = 2;
+  t->code_file = NULL;
+
   int i;
-  for(i = 0; i < sizeof(t->open_files); i++)
-    {
-      t->open_files[i] = NULL;
-    }
-  
+  for(i = 2; i < 128; i++)
+  {
+   t->open_files[i] = NULL;
+  }
+
   list_push_back (&all_list, &t->allelem);
 }
 

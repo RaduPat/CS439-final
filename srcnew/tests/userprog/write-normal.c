@@ -9,7 +9,7 @@ void
 test_main (void) 
 {
   int handle, byte_cnt;
-  printf("size of sample: %d", sizeof sample);
+ // printf("size of sample: %d", sizeof sample);
   CHECK (create ("test.txt", sizeof sample - 1), "create \"test.txt\"");
   CHECK ((handle = open ("test.txt")) > 1, "open \"test.txt\"");
 

@@ -23,7 +23,7 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 
-void set_denywrite (bool);
+//void set_denywrite (bool);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -281,7 +281,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   strlcpy (t->name, argv[0], sizeof t->name);
 
   // denying writes to all files currently open with the same name
-  set_denywrite(true);
 
   /* Open executable file. */
   file = filesys_open (argv[0]);
@@ -291,6 +290,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", argv[0]);
       goto done; 
     }
+
+  t->code_file = file;
+  file_deny_write(t->code_file);
+
+
   //printf("======= 3\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -375,7 +379,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
