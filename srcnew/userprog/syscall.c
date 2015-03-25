@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "filesys/fsutil.h"
 #include "userprog/process.h"
 #include "threads/vaddr.h"
 #include "devices/input.h"
@@ -50,6 +51,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  //fsutil_ls("blah");
   check_pointer(f->esp);
 
   int *esp_int_pointer = (int*) f->esp;
@@ -102,6 +104,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   				//printf("^^^^^^^^^^^ file create failed in switch\n");
   			}
   		}
+  		break;
   	case SYS_REMOVE:
   		{
   			check_pointer(esp_int_pointer+1);
@@ -153,27 +156,28 @@ syscall_handler (struct intr_frame *f UNUSED)
   			unsigned pos = (unsigned) *(esp_int_pointer+2);
   			f->eax = seek_h (file_descriptor, pos);
   		}
+  		break;
   	case SYS_TELL:
   		{
   			check_pointer(esp_int_pointer+1);
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			f->eax = tell_h (file_descriptor);
   		}
+  		break;
   	case SYS_CLOSE:
   		{
   			check_pointer(esp_int_pointer+1);
   			int file_descriptor = (int) *(esp_int_pointer+1);
   			f->eax = close_h (file_descriptor);
   		}
+  		break;
   }
 }
 
 void
 halt_h (void)
 {
-	lock_acquire(&syscall_lock);
 	shutdown_power_off();
-	lock_release(&syscall_lock);
 }
 
 void
@@ -204,11 +208,12 @@ bool
 create_h (char *file, unsigned initial_size) 
 {
 	check_pointer(file);
-	//printf("^^^^^^^^ file name %s***********\n", file);
+	//printf("syscall.h#create_h: file=%s\tinitial_size=%d\n", file, initial_size);
 	bool success = false;
 	lock_acquire(&syscall_lock);
 	//printf("lock acquire\n");
 	success = filesys_create(file, (off_t) initial_size);
+	//printf("syscall.h#create_h: success=%s\n", success ? "true" : "false");
 	//printf("lock release\n");
 	lock_release(&syscall_lock);
 
@@ -233,7 +238,7 @@ open_h (char *file)
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
 	lock_release(&syscall_lock);
-	printf("here\n");
+	//printf("here\n");
 	if (open_file == NULL){
 		return -1;
 	}
@@ -313,7 +318,9 @@ seek_h (int file_descriptor, unsigned position)
 	struct file *found_file = find_open_file (file_descriptor);
 	if(found_file != NULL)
 	{
+		lock_acquire(&syscall_lock);
 		file_seek(found_file, (off_t) position);
+		lock_release(&syscall_lock);
 		return 1; //returning 1 and -1 to signify pushing to EAX
 	}
 	return -1;
@@ -325,7 +332,10 @@ tell_h (int file_descriptor)
 	struct file *found_file = find_open_file (file_descriptor);
 	if(found_file != NULL)
 	{
-		return file_tell (found_file);
+		lock_acquire(&syscall_lock);
+		unsigned ret =  (unsigned) file_tell (found_file);
+		lock_release(&syscall_lock);
+		return ret;
 	}
 	return -1;
 }

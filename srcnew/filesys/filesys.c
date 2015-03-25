@@ -26,10 +26,10 @@ filesys_init (bool format)
 
   if (format) 
     do_format ();
- 
+
   free_map_open ();
 }
- 
+
 /* Shuts down the file system module, writing any unwritten data
    to disk. */
 void
@@ -45,7 +45,6 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size) 
 {
-  //printf("^^^^^ name of requested file from syscall.c: %s\n", name);
   block_sector_t inode_sector = 0;
   struct dir *dir = dir_open_root ();
   bool success = (dir != NULL
