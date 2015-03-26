@@ -96,13 +96,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   			const char **file = (char **) (esp_int_pointer+1);
   			unsigned initial_size = (unsigned) *(esp_int_pointer+2);
   			f->eax = create_h(*file, initial_size);
-  			if (f->eax)	
-  			{
-  				//printf("^^^^^^^^^^^ file create success in switch\n");
-  			}
-  			else{
-  				//printf("^^^^^^^^^^^ file create failed in switch\n");
-  			}
   		}
   		break;
   	case SYS_REMOVE:

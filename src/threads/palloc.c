@@ -117,9 +117,10 @@ palloc_get_page (enum palloc_flags flags)
 void
 palloc_free_multiple (void *pages, size_t page_cnt) 
 {
+  printf("here");
   struct pool *pool;
   size_t page_idx;
-
+  printf("++++++++++++++++++++++++++++++++pg_ofs: %d\n", pg_ofs(pages));
   ASSERT (pg_ofs (pages) == 0);
   if (pages == NULL || page_cnt == 0)
     return;
