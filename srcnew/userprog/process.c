@@ -126,7 +126,7 @@ process_wait (tid_t child_tid)
         //remove the status_holder (reap the child)
         list_remove(&s_holder->child_elem);
         //reap the resources of the dead child
-        palloc_free_page((void*) &s_holder);
+        //palloc_free_page((void*) &s_holder);
 
         return s_holder->status;
       }
