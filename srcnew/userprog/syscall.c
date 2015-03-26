@@ -15,8 +15,6 @@
 
 static void syscall_handler (struct intr_frame *);
 
-//void set_denywrite (bool);
-
 void halt_h(void);
 void exit_h (int status);
 tid_t exec_h (char *cmd_line);
@@ -45,13 +43,11 @@ syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&syscall_lock);
-  //lock_init(&lock_allopenfiles);
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //fsutil_ls("blah");
   check_pointer(f->esp);
 
   int *esp_int_pointer = (int*) f->esp;
@@ -63,15 +59,15 @@ syscall_handler (struct intr_frame *f UNUSED)
   	case SYS_HALT:
   		{
  			halt_h ();
-  	  	}
-  	  	break;
+  	  }
+  	  break;
 
-	case SYS_EXIT:
-		{
-			int status;
-			check_pointer(esp_int_pointer+1);
-			status = (int) *(esp_int_pointer+1);
-			exit_h (status);
+		case SYS_EXIT:
+			{
+				int status;
+				check_pointer(esp_int_pointer+1);
+				status = (int) *(esp_int_pointer+1);
+				exit_h (status);
 		}
 		break;
 

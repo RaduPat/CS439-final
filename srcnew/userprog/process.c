@@ -32,6 +32,13 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  /* check to see if the arguments will fit in the page for the 
+    stack. 19 is used because it is the size of the necessary items that
+    will always be on the stack such as the NULL, the word alignment, argv,
+    argc, and the return address. */
+  if(strlen(file_name) > PHYS_BASE - (19 + (MAXARGS * 4)))
+    PANIC("Not enough space for arguments"); 
+
   char *fn_copy;
   tid_t tid;
 
@@ -108,15 +115,10 @@ process_wait (tid_t child_tid)
   for (e = list_begin (&thread_current()->list_of_children); e != list_end (&thread_current()->list_of_children); e = list_next (e))
     {
       ASSERT(e != NULL);
-      //printf("##### %x\n", e);
       struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
       ASSERT(s_holder != NULL);
-      /*printf("##### %x\n", s_holder);
-      printf("##### %x\n", s_holder->owner_thread);
-
-      printf("### ### requested TID: %d\n", child_tid);
-      printf("### ### current TID: %d\n", s_holder->tid);*/
-      if (s_holder->tid == child_tid)
+      
+      if (s_holder->tid == child_tid) 
       {
         if (s_holder->isalive)
         {
@@ -132,8 +134,6 @@ process_wait (tid_t child_tid)
       }
     }
   return -1;
-  //while(1);
-  //return -1;
 }
 
 /* Free the current process's resources. */
@@ -281,8 +281,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   // setting the correct name of the thread
   strlcpy (t->name, argv[0], sizeof t->name);
-
-  // denying writes to all files currently open with the same name
 
   /* Open executable file. */
   file = filesys_open (argv[0]);
@@ -502,8 +500,6 @@ setup_stack (void **esp, char * argv[], int argc)
   bool success = false;
   char * arg_pointers[argc];
   
-  if(argc > MAXARGS) 
-    PANIC("Too many arguments.");
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   
   if (kpage != NULL) 
@@ -523,9 +519,7 @@ setup_stack (void **esp, char * argv[], int argc)
     int length = strlen (argv[i]) + 1;
     my_esp -= length;
     arg_pointers[i] = my_esp;
-    //printf("address: %x\n", my_esp);
     memcpy(my_esp, argv[i], length);
-    // my_esp = argv[i];
    }
 
    //Word align padding

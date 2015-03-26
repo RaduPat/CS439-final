@@ -40,8 +40,6 @@ static struct lock tid_lock;
 
 void set_denywrite (bool);
 
-
-
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
