@@ -191,8 +191,11 @@ halt_h (void)
 /* Nick drove here */
 void
 exit_h (int status)
-{  
-	thread_current ()->stat_holder->status = status;
+{
+    if (thread_current ()->stat_holder != NULL) {
+        thread_current ()->stat_holder->status = status;
+    }
+    thread_current ()->status_number = status;
 	thread_exit ();
 }
 
@@ -350,7 +353,8 @@ close_h (int file_descriptor)
 	if (found_file != NULL) 
 		thread_current () -> open_files[file_descriptor] = NULL;
 	else
-		return -1;
+        return -1;
+    file_close(found_file);
 	return 1;
 }
 

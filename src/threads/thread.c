@@ -185,11 +185,12 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  
   /* Andrew and Nick drove here */
-   //set parent
+  // set parent
   t->parent = thread_current();
 
-  //create status holder
+  // create status holder
   struct status_holder * current_statusholder;
   current_statusholder = palloc_get_page (PAL_ZERO);
   memset (current_statusholder, 0, sizeof (struct status_holder));
@@ -197,8 +198,11 @@ thread_create (const char *name, int priority,
   current_statusholder->tid = tid;
   current_statusholder->owner_thread = t;
 
-  //link status holder to thread
+  // link status holder to thread
   t->stat_holder = current_statusholder;
+    
+  // setting the default status value of a thread
+  t->status_number = -1;
 
   list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
 
@@ -318,8 +322,9 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   sema_up (&thread_current ()->wait_sema);
   printf ("%s: exit(%d)\n", thread_current ()->name,
-  thread_current ()->stat_holder->status);
+  thread_current ()->status_number);
   file_close(thread_current ()-> code_file);
+  close_files(thread_current ()->open_files);
   intr_disable ();
   list_remove (&thread_current ()->allelem);
   thread_current ()->status = THREAD_DYING;
@@ -623,3 +628,34 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* Function to go through the array of open files for a thread and close them. */
+void
+close_files(struct file * files[])
+{
+    int i;
+    for(i = 2; i <  MAX_FILES ; i++)
+    {
+        if(files[i] != NULL)  {
+            file_close(files[i]);
+        }
+    }
+}
+
+void
+delete_children(){
+    struct list_elem * e;
+    struct list_elem * temp;
+    for (e = list_begin (&thread_current ()->list_of_children);
+         e != list_end (&thread_current ()->list_of_children); )
+    {
+        struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
+        
+        temp = e;
+        e = list_next (e);
+        
+        list_remove(temp);
+        s_holder->owner_thread->stat_holder = NULL;
+        palloc_free_page(s_holder);
+    }
+}

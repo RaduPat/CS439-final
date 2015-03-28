@@ -118,14 +118,13 @@ process_wait (tid_t child_tid)
       if (s_holder->tid == child_tid)
         {
           sema_down (&(s_holder->owner_thread)->wait_sema);
+            int number_status = s_holder->status;
           
           //remove the status_holder (reap the child)
           list_remove(&s_holder->child_elem);
-            
-          //reap the resources of the dead child
           palloc_free_page((void*) s_holder);
 
-          return s_holder->status;
+          return number_status;
         }
     }
   return -1;

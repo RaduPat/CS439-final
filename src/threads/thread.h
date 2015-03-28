@@ -110,6 +110,7 @@ struct thread
     struct semaphore exec_sema;           /* semaphore to check if a program has been loaded and return only after confirming that */
     bool childExecSuccess;                /* has child been loaded successfully? */
     struct status_holder *stat_holder;    /* Pointer to the thread's status holder (held in its parent) */
+    int status_number;                    /* A field to hold the status of the thread in case the status holder gets deleted by the parent */
     struct list list_of_children;         /* list of children */
     struct thread * parent;               /* ptr to parent */
     struct semaphore wait_sema;           /*semaphore to synchronize the wait sys call */
