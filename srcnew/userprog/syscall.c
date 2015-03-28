@@ -197,16 +197,11 @@ bool
 create_h (char *file, unsigned initial_size) 
 {
 	check_pointer(file);
-	//printf("syscall.h#create_h: file=%s\tinitial_size=%d\n", file, initial_size);
 	bool success = false;
 	lock_acquire(&syscall_lock);
-	//printf("lock acquire\n");
 	success = filesys_create(file, (off_t) initial_size);
-	//printf("syscall.h#create_h: success=%s\n", success ? "true" : "false");
-	//printf("lock release\n");
 	lock_release(&syscall_lock);
 
-	//printf("success = %d\n", success);
 	return success;
 }
 
@@ -227,7 +222,6 @@ open_h (char *file)
 	lock_acquire(&syscall_lock);
 	struct file *open_file = filesys_open(file);
 	lock_release(&syscall_lock);
-	//printf("here\n");
 	if (open_file == NULL){
 		return -1;
 	}
@@ -294,7 +288,6 @@ write_h (int file_descriptor, void *buffer, unsigned size)
 				{
 					lock_acquire (&syscall_lock);
 					bytes_written = file_write (found_file, buffer, size);
-					//printf("Number of bytes written in Handler: %d", bytes_written);
 					lock_release (&syscall_lock);
 				}
 			return bytes_written;
@@ -337,7 +330,7 @@ close_h (int file_descriptor)
 		thread_current () -> open_files[file_descriptor] = NULL;
 	else
 		return -1;
-	//free(found_file);
+	file_close(found_file);
 	return 1;
 }
 
@@ -356,7 +349,6 @@ find_open_file (int fd)
 void
 check_pointer (void *pointer)
 {
-	//void *success = pagedir_get_page (thread_current()->pagedir, pointer);
 	//check above phys base			check within its own page
 	if(is_kernel_vaddr(pointer) || pagedir_get_page (thread_current()->pagedir, pointer) == NULL)
 		exit_h(-1);

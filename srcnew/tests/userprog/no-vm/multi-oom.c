@@ -106,7 +106,6 @@ int
 main (int argc, char *argv[])
 {
   int n;
-  //printf("++++++++++++++++++++++++++++++++++argc: %d\n", argc);
   n = argc > 1 ? atoi (argv[1]) : 0;
   bool is_at_root = (n == 0);
   if (is_at_root)

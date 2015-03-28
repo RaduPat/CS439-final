@@ -203,12 +203,6 @@ thread_create (const char *name, int priority,
   t->stat_holder = current_statusholder;
 
   list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
-  /*printf("******* %x \n", &current_statusholder->child_elem);
-  printf("********* %x \n", current_statusholder);
-  printf("*********** %x \n", thread_current());
-  printf("************ %d \n", current_statusholder->tid);
-  printf("************* Parent Name: %s \n", thread_current()->name);
-  printf("************** Current thread address: %x \n", t);*/
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -327,7 +321,8 @@ thread_exit (void)
   sema_up(&thread_current()->wait_sema);
   thread_current()->stat_holder->isalive = false;
   printf ("%s: exit(%d)\n", thread_current()->name, thread_current()->stat_holder->status);
-  file_close(thread_current ()-> code_file);
+  file_close(thread_current ()->code_file);
+  close_files(thread_current ()->open_files);
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
@@ -632,17 +627,15 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-bool
-isAliveThread(char * threadName){
-  struct list_elem *e;
-
-  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      if (!strcmp(t->name, threadName))
-      {
-        return true;
-      }
+/*Function to go through the array of open files for a thread and close them.*/
+void
+close_files(struct file * files[])
+{
+  int i;
+  for(i = 2; i <  MAX_FILES ; i++)
+  {
+    if(files[i] != NULL)  {
+      file_close(files[i]);
     }
-  return false;
+  }
 }

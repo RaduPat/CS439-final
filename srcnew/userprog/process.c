@@ -36,7 +36,7 @@ process_execute (const char *file_name)
     stack. 19 is used because it is the size of the necessary items that
     will always be on the stack such as the NULL, the word alignment, argv,
     argc, and the return address. */
-  if(strlen(file_name) > PHYS_BASE - (19 + (MAXARGS * 4)))
+  if(strlen(file_name) > (4096 - (19 + (MAXARGS * 4))))
     PANIC("Not enough space for arguments"); 
 
   char *fn_copy;
@@ -71,9 +71,6 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  
-  /*printf("$$$$$$$ %x", thread_current()->stat_holder);
-  printf("$$$$$$$$$$ %x", &(thread_current()->stat_holder)->child_elem);*/
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -83,7 +80,7 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
   thread_current()->parent->childExecSuccess = success;
 
-  /* If load failed, quit. */
+
   palloc_free_page (file_name);
   sema_up(&thread_current()->parent->exec_sema);
   if (!success) 
@@ -128,7 +125,7 @@ process_wait (tid_t child_tid)
         //remove the status_holder (reap the child)
         list_remove(&s_holder->child_elem);
         //reap the resources of the dead child
-        //palloc_free_page((void*) &s_holder);
+        palloc_free_page((void*) s_holder);
 
         return s_holder->status;
       }
@@ -262,7 +259,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
-  //printf("======= 1\n");
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
@@ -275,7 +271,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       token = strtok_r (NULL, " ", &save_ptr))
   {
     argv[argcounter] = token;
-    //printf("Argv:%s\n", argv[argcounter]);
     argcounter++;
   }
 
@@ -284,7 +279,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   file = filesys_open (argv[0]);
-  //printf("======= 2 %s\n",argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", argv[0]);
@@ -295,7 +289,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_deny_write(t->code_file);
 
 
-  //printf("======= 3\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -308,7 +301,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-  //printf("======= 4\n");
+
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -367,7 +360,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-  //printf("======= 5\n");
+
   /* Set up stack. */
   if (!setup_stack (esp, argv, argcounter))
     goto done;
@@ -486,7 +479,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      //palloc_free_page(kpage);
     }
+  
   return true;
 }
 
@@ -495,7 +490,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char * argv[], int argc) 
 {
-
   uint8_t *kpage;
   bool success = false;
   char * arg_pointers[argc];
@@ -556,8 +550,6 @@ setup_stack (void **esp, char * argv[], int argc)
 
                                          
    *esp = (void *) ptrSize4;
-   //ASSERT(0);
-   //hex_dump(*esp, *esp, PHYS_BASE-*esp, 1);
 
   return success;
 }
