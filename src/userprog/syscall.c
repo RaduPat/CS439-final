@@ -15,6 +15,9 @@
 
 static void syscall_handler (struct intr_frame *);
 
+/* helper functions to implement system calls
+    They make the switch statement cleaner */
+
 void halt_h(void);
 void exit_h (int status);
 tid_t exec_h (char *cmd_line);
@@ -29,10 +32,27 @@ int seek_h (int file_descriptor, unsigned position);
 unsigned tell_h (int file_descriptor);
 int close_h (int file_descriptor);
 
+// checks the validity of a pointer
 void check_pointer (void *pointer);
-void assign_fd(struct file *open_file, struct file * files[]);
+
+// returns a pointer to the file given the file descriptor
 struct file * find_open_file (int fd);
-int find_fd(struct file * files[], struct file * target); 
+
+/* function to find the file descriptor of a file
+    This function takes as input the file for which
+    the file descriptor is required, as well as the
+    array of files owned by the thread which owns
+    the aforementioned file */
+int find_fd(struct file * files[], struct file * target);
+
+/* function to assign a file descriptor to a file
+    This function takes as input the file which 
+    needs a file descriptor, as well as the array
+    of files owned by the thread which owns the
+    aforementioned file */
+void assign_fd(struct file *open_file, struct file * files[]);
+
+// prototype to pintos shutdown function - this was placed here to silence a warning.
 void shutdown_power_off(void);
 
 /* lock to synchronize access to the filesystem */
