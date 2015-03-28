@@ -18,58 +18,55 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #define MAXARGS 25
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-
-/* List of all processes.  Processes are added to this list
-   when they are first scheduled and removed when they exit. */
-//extern struct list all_list;
-
-extern struct list status_list;
-
-//extern struct semaphore exec_sema;
-
-extern struct lock status_lock;
-
-static bool success_loadfn;
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *cmd_line) 
+process_execute (const char *file_name) 
 {
+  /* check to see if the arguments will fit in the page for the 
+    stack. 19 is used because it is the size of the necessary items that
+    will always be on the stack such as the NULL, the word alignment, argv,
+    argc, and the return address. */
+  if (strlen (file_name) > (4096 - (19 + (MAXARGS * 4))))
+    PANIC("Not enough space for arguments"); 
+
   char *fn_copy;
   tid_t tid;
-
-  //Initializes the semaphore here so it blocks when it calls thread_create
-  //sema_init(&exec_sema, 1);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, cmd_line, PGSIZE);
-     
+  strlcpy (fn_copy, file_name, PGSIZE);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (cmd_line, PRI_DEFAULT, start_process, fn_copy);
-  if(!success_loadfn)
-    tid = TID_ERROR;
+  // we're changing the name to just the executable path in load()
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
+  /* Eddy drove here */
+  thread_current ()->childExecSuccess = false;
+  sema_down (&thread_current ()->exec_sema);
+
+  if (!thread_current ()->childExecSuccess)
+    return TID_ERROR;
   
-  success_loadfn = false;
-  
-  sema_down(&thread_current ()->exec_sema);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)//Assuming that start_process is called only in process_execute. So no additional synchronization is required for success_loadfn.
+start_process (void *file_name_)
 {
   char *file_name = file_name_;
   struct intr_frame if_;
@@ -80,17 +77,11 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-
-  ASSERT(*file_name != NULL);
-  //printf("file name: %s\n", file_name);
   success = load (file_name, &if_.eip, &if_.esp);
-  success_loadfn = success;
+  thread_current ()->parent->childExecSuccess = success;
 
-
-  
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  //Unblocks the parent thread
   sema_up(&thread_current ()->parent->exec_sema);
   if (!success) 
     thread_exit ();
@@ -117,52 +108,23 @@ start_process (void *file_name_)//Assuming that start_process is called only in 
 int
 process_wait (tid_t child_tid) 
 {
-  /*
-  printf("############# Entering wait\n");
-  struct list_elem * a = 0x1234567;
-  struct thread * athread = NULL;
-  printf("############ init things\n");
-  int old_level = intr_disable();
-  //ASSERT(list_begin (&all_list) != NULL);
-  printf("Lenght of all list: %d\n", list_size(&all_list));
-  for (a = list_begin (&all_list); a != list_end (&all_list); a = list_next (a))
+  /* Andrew drove here */
+  struct list_elem * e;
+  for (e = list_begin (&thread_current ()->list_of_children);
+         e != list_end (&thread_current ()->list_of_children); e = list_next (e))
     {
-      //ASSERT(a != NULL);
-      //printf("###### LOOPING ALL \n");
-      athread = list_entry (a, struct thread, allelem);
-      //printf("###### list entry \n");
-      //if(athread == NULL)
-      printf("########### hex %x \n", a);
-      ASSERT(athread != NULL);
-      ASSERT(athread->tid != NULL);
-      printf("############# Name: %d\n", athread->priority);
-      if(athread->tid == child_tid && athread->parent == thread_current ()) //athread is currently active and not dead
-        { 
-          printf("########### entering IF state a \n");
-          sema_down(&athread->wait_sema);
-          break;
-        }
-    }
-  intr_set_level(old_level);
-  printf("2 ######################\n");
-  struct list_elem * b;
-  struct status_holder * astatus;
-
-  lock_acquire(&status_lock);
-  for (b = list_begin (&status_list); b != list_end (&status_list); b = list_next (b))
-    {
-      astatus = list_entry (b, struct status_holder, status_elem);
-      if(astatus->tid == child_tid && astatus->ptr_to_parent == thread_current ())
+      struct status_holder *s_holder = list_entry (e, struct status_holder, child_elem);
+      
+      if (s_holder->tid == child_tid)
         {
-          list_remove(&astatus->status_elem);
-          lock_release(&status_lock);
-          return astatus->status;
+          sema_down (&(s_holder->owner_thread)->wait_sema);
+          
+          //remove the status_holder (reap the child)
+          list_remove(&s_holder->child_elem);
+
+          return s_holder->status;
         }
     }
-  lock_release(&status_lock);
-  printf("############# end of wait\n");
-	*/
-  while (1);
   return -1;
 }
 
@@ -270,7 +232,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp, char *argv[], int argc);
+static bool setup_stack (void **esp, char * argv[], int argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -289,7 +251,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  //printf("cmdline: %s\n", file_name);
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -299,23 +261,27 @@ load (const char *file_name, void (**eip) (void), void **esp)
  char *argv[MAXARGS];
  char *token, *save_ptr;
  int argcounter = 0;
- //ASSERT(file_name != NULL);
+
  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
       token = strtok_r (NULL, " ", &save_ptr))
   {
     argv[argcounter] = token;
-    
     argcounter++;
   }
-//printf("****************************Argv:%s\n", argv[argcounter]);
+  /* Radu drove here */
+  // setting the correct name of the thread
+  strlcpy (t->name, argv[0], sizeof t->name);
 
-  //printf("First argument: %s\n", argv[0]);
+  /* Open executable file. */
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", argv[0]);
       goto done; 
     }
+
+  t->code_file = file;
+  file_deny_write (t->code_file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -329,7 +295,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -388,8 +353,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
-   
   /* Set up stack. */
   if (!setup_stack (esp, argv, argcounter))
     goto done;
@@ -401,10 +364,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -518,14 +480,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char * argv[], int argc) 
 {
-  char * arg_pointers[argc];
-  if(argc > MAXARGS) 
-    PANIC("Too many arguments.");
-
   uint8_t *kpage;
   bool success = false;
-
+  char * arg_pointers[argc];
+  
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -534,38 +494,40 @@ setup_stack (void **esp, char * argv[], int argc)
       else
         palloc_free_page (kpage);
     }
+
+  /* Eddy drove here */
   char *my_esp = (char *)*esp;
   int i;
-   //pushing the strings onto the stack
+  //pushing the strings onto the stack
   for(i = 0; i < argc; i++)
     {
       int length = strlen (argv[i]) + 1;
       my_esp -= length;
       arg_pointers[i] = my_esp;
-      printf("address: %x\n", my_esp);
-      memcpy(my_esp, argv[i], length);
+      memcpy (my_esp, argv[i], length);
     }
 
-   //Word align padding
+  //Word align padding
   int padding = ((int) PHYS_BASE - (int) my_esp) % 4;
   padding = (4 - padding) % 4;
   my_esp = (char *) ((int) my_esp - padding);
 
   *esp = (void *) my_esp;
 
-   //store null
+  //store null
   int * ptrSize4 = (int *) *esp;
+
   ptrSize4 -= 1;
   *ptrSize4 = 0;
 
-    //pushing pointers to the strings (arguments)
-  for (i = argc - 1; i >= 0; i--)
+  //pushing pointers to the strings (arguments)
+  for(i = argc - 1; i >= 0; i--)
     {
       ptrSize4 -= 1;
       *ptrSize4 = (int) arg_pointers[i];//Ints are the same size pointers
     }
 
-    //pushing the pointer to the array of arguments
+  //pushing the pointer to the array of arguments
   int * argvArrayPointer = ptrSize4;
   ptrSize4--;
   *ptrSize4 = (int) argvArrayPointer;
@@ -577,9 +539,8 @@ setup_stack (void **esp, char * argv[], int argc)
   //push dummy return address
   ptrSize4 -= 1;
   *ptrSize4 = 0;
-                                         
-  *esp = (void *) ptrSize4;
-  hex_dump (*esp, *esp, PHYS_BASE-*esp, 1);
+
+ *esp = (void *) ptrSize4;
 
   return success;
 }

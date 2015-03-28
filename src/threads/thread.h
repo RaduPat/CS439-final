@@ -24,15 +24,17 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+#define MAX_FILES 128
 
  //struct for holding the tid of a thread that calls exit and its corresponding status
   static struct status_holder
   {
     tid_t tid;
     int status;
-    struct list_elem status_elem;
-    struct thread * ptr_to_parent;
+    struct list_elem child_elem;
+    struct thread * owner_thread; // the thread that owns this status holder
   };
+
 
 /* A kernel thread or user process.
 
@@ -102,12 +104,19 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    struct thread * parent;
-    struct semaphore wait_sema;        //sema used in wait.
-    struct semaphore exec_sema;
-
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    /* Andrew and Radu drove here */
+    struct semaphore exec_sema;           /* semaphore to check if a program has been loaded and return only after confirming that */
+    bool childExecSuccess;                /* has child been loaded successfully? */
+    struct status_holder *stat_holder;    /* Pointer to the thread's status holder (held in its parent) */
+    struct list list_of_children;         /* list of children */
+    struct thread * parent;               /* ptr to parent */
+    struct semaphore wait_sema;           /*semaphore to synchronize the wait sys call */
+    struct file * open_files[MAX_FILES];  /* list that hold all open files containing file descriptors */
+    struct file * code_file;               /* file that the thread is currently executing */
+    int index_fd;                         /* # calls to file open, starting from 2 */
+
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

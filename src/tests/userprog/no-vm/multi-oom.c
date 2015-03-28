@@ -105,6 +105,7 @@ consume_some_resources_and_die (int seed)
 int
 main (int argc, char *argv[])
 {
+  
   int n;
 
   n = argc > 1 ? atoi (argv[1]) : 0;
@@ -121,8 +122,8 @@ main (int argc, char *argv[])
 
   int howmany = is_at_root ? EXPECTED_REPETITIONS : 1;
   int i, expected_depth = -1;
-
-  for (i = 0; i < howmany; i++)
+for
+   (i = 0; i < howmany; i++)
     {
       pid_t child_pid;
 
@@ -176,4 +177,4 @@ main (int argc, char *argv[])
 
   return expected_depth;
 }
-// vim: sw=2
+

@@ -1,3 +1,4 @@
+#include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -9,7 +10,6 @@
 #include "threads/palloc.h"
 #include "threads/switch.h"
 #include "threads/synch.h"
-#include "threads/thread.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -37,17 +37,7 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
-/* Lock used to synchronize access to the file system. */
-struct lock syscall_lock;
-
-/* Semaphore for synchronizing access to file system. */
-//struct semaphore exec_sema;
-
-/* List to hold the status structs of threads for the exit sys call */
-struct list status_list;
-
-/* Lock used to synchronize access to the list of statuses for dead threads */
-struct lock status_lock;
+void set_denywrite (bool);
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -104,14 +94,12 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  lock_init(&syscall_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
-
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -197,9 +185,22 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
-  //set parent
+  /* Andrew and Nick drove here */
+   //set parent
   t->parent = thread_current();
+
+  //create status holder
+  struct status_holder * current_statusholder;
+  current_statusholder = palloc_get_page (PAL_ZERO);
+  memset (current_statusholder, 0, sizeof (struct status_holder));
+  current_statusholder->status = -1;
+  current_statusholder->tid = tid;
+  current_statusholder->owner_thread = t;
+
+  //link status holder to thread
+  t->stat_holder = current_statusholder;
+
+  list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -315,8 +316,12 @@ thread_exit (void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+  sema_up (&thread_current ()->wait_sema);
+  printf ("%s: exit(%d)\n", thread_current ()->name,
+  thread_current ()->stat_holder->status);
+  file_close(thread_current ()-> code_file);
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&thread_current ()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -487,12 +492,22 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  sema_init(&t->wait_sema, 0);
-  ASSERT(&t->allelem != NULL);
-  //printf("********************added to all list:%s \n", &t->name);
+  /* Eddy and Radu drove here */
+  list_init (&t->list_of_children);
+
+  sema_init (&t->exec_sema, 0);
+  sema_init (&t->wait_sema, 0);
+
+  t->index_fd = 2;
+  t->code_file = NULL;
+
+  int i;
+  for(i = 2; i < 128; i++)
+  {
+    t->open_files[i] = NULL;
+  }
+
   list_push_back (&all_list, &t->allelem);
-  sema_init(&t->exec_sema, 1);
-  ASSERT(all_list.head.next != NULL);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
