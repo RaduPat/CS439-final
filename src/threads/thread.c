@@ -1,3 +1,4 @@
+#include "vm/frametable.h"
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -192,7 +193,7 @@ thread_create (const char *name, int priority,
 
   // create status holder
   struct status_holder * current_statusholder;
-  current_statusholder = palloc_get_page (PAL_ZERO);
+  current_statusholder = assign_page ();
   memset (current_statusholder, 0, sizeof (struct status_holder));
   current_statusholder->status = -1;
   current_statusholder->tid = tid;

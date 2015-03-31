@@ -1,3 +1,4 @@
+#include "vm/frametable.h"
 #include "userprog/process.h"
 #include <debug.h>
 #include <inttypes.h>
@@ -41,7 +42,7 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
+  fn_copy = assign_page();
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -58,7 +59,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    free_frame (fn_copy); 
 
   return tid;
 }
@@ -81,7 +82,7 @@ start_process (void *file_name_)
   thread_current ()->parent->childExecSuccess = success;
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
+  free_frame (file_name);
   sema_up(&thread_current ()->parent->exec_sema);
   if (!success) 
     thread_exit ();
@@ -122,7 +123,7 @@ process_wait (tid_t child_tid)
           
           //remove the status_holder (reap the child)
           list_remove(&s_holder->child_elem);
-          palloc_free_page((void*) s_holder);
+          free_frame((void*) s_holder);
 
           return number_status;
         }
@@ -450,14 +451,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = assign_page();
       if (kpage == NULL)
         return false;
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          palloc_free_page (kpage);
+          free_frame (kpage);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -465,7 +466,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
-          palloc_free_page (kpage);
+          free_frame (kpage);
           return false; 
         }
 
@@ -486,7 +487,7 @@ setup_stack (void **esp, char * argv[], int argc)
   bool success = false;
   char * arg_pointers[argc];
   
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = assign_page();
   
   if (kpage != NULL) 
     {
@@ -494,7 +495,7 @@ setup_stack (void **esp, char * argv[], int argc)
       if (success)
         *esp = PHYS_BASE;
       else
-        palloc_free_page (kpage);
+        free_frame (kpage);
     }
 
   /* Eddy drove here */
