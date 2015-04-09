@@ -5,6 +5,7 @@
 #include <debug.h>
 #include <inttypes.h>
 #include <stddef.h>
+#include "filesys/off_t.h"
 
 #include "lib/kernel/list.h"
 
@@ -21,6 +22,7 @@ enum load_instruction
 struct spinfo
 {
 	struct file *file; 									/* Pointer to the file if that is where we need to load from */
+	off_t file_offset;
 	size_t bytes_to_read;         			/* The number of bytes we need to read from the file */
 	bool writable; 											/* Whether or not the file can be written to */
 	uint8_t * upage_address;						/* Address of the user page */

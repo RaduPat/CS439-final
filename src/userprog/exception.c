@@ -159,17 +159,15 @@ page_fault (struct intr_frame *f)
       uint8_t *kpage = assign_page();
       if (kpage == NULL)
         PANIC("assign_page page failed while loading from file");
-      if (spage_info->writable)
-      {
-        PANIC("NO page fault");
-      }
+
   if (spage_info->instructions == FILE){
 
       /* Load this page from a file. */
+    file_seek(spage_info->file, spage_info->file_offset);
       if (file_read (spage_info->file, kpage, spage_info->bytes_to_read) != (int) spage_info->bytes_to_read)
         {
           free_frame (kpage);
-          PANIC("reading the failed in page fault handler"); 
+          PANIC("reading the file failed in page fault handler"); 
         }
 
         size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;

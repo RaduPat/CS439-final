@@ -85,8 +85,9 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   free_frame (file_name);
   sema_up(&thread_current ()->parent->exec_sema);
-  if (!success) 
+  if (!success) {
     thread_exit ();
+  }
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -276,6 +277,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // setting the correct name of the thread
   strlcpy (t->name, argv[0], sizeof t->name);
 
+
   /* Open executable file. */
   file = filesys_open (argv[0]);
   if (file == NULL) 
@@ -286,6 +288,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   t->code_file = file;
   file_deny_write (t->code_file);
+
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -299,6 +302,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
+
+
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -348,6 +353,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
                   read_bytes = 0;
                   zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
                 }
+
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
                 goto done;
@@ -358,8 +364,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
   /* Set up stack. */
+
   if (!setup_stack (esp, argv, argcounter))
     goto done;
+
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -441,7 +449,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -452,13 +459,13 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Make an entry in the supplemental page table. */
       struct spinfo * new_spinfo;
-      new_spinfo = palloc_get_page(0);
+      new_spinfo = malloc(sizeof (struct spinfo));
       new_spinfo->file = file;
+      new_spinfo->file_offset = ofs;
       new_spinfo->bytes_to_read = page_read_bytes;
       new_spinfo->writable = writable;
       new_spinfo->upage_address = upage;
       new_spinfo->instructions = FILE;
-      memset (new_spinfo, 0, sizeof (struct spinfo));
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
       
       /*uint8_t *kpage = assign_page();
@@ -484,6 +491,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += PGSIZE;
     }
   return true;
 }
@@ -494,18 +502,16 @@ static bool
 setup_stack (void **esp, char * argv[], int argc) 
 {
   uint8_t *kpage;
-  bool success = false;
   char * arg_pointers[argc];
   
   /* Make an entry in the supplemental page table for the stack. */
   struct spinfo * new_spinfo;
-  new_spinfo = palloc_get_page(0);
+  new_spinfo = malloc(sizeof (struct spinfo));
   new_spinfo->file = NULL;
   new_spinfo->bytes_to_read = 0;
   new_spinfo->writable = true;
   new_spinfo->upage_address = ((uint8_t *) PHYS_BASE) - PGSIZE;
   new_spinfo->instructions = STACK;
-  memset (new_spinfo, 0, sizeof (struct spinfo));
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
   /*kpage = assign_page();
@@ -520,6 +526,7 @@ setup_stack (void **esp, char * argv[], int argc)
     }*/
 
   /* Eddy drove here */
+  *esp = PHYS_BASE;
   char *my_esp = (char *)*esp;
   int i;
   //pushing the strings onto the stack
@@ -566,7 +573,7 @@ setup_stack (void **esp, char * argv[], int argc)
 
  *esp = (void *) ptrSize4;
 
-  return success;
+  return true;// because we're doing demand paging.
 }
 
 /* Adds a mapping from user virtual address UPAGE to kernel
