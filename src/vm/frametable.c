@@ -1,10 +1,12 @@
 #include "frametable.h"
 #include "threads/palloc.h"
+#include <inttypes.h>
+
 
 extern uint32_t init_ram_pages;
-const uint32_t user_frames = init_ram_pages/2;
+const uint32_t user_frames = 1024; //init_ram_pages/2;
 
-struct metaframe frametable[user_frames]; 
+struct metaframe frametable[1024]; 
 
 struct metaframe* 
 get_metaframe_byindex(int index){
@@ -25,7 +27,7 @@ get_metaframe_bypage(void* page){
 struct metaframe* 
 next_empty_frame(){
 	int i;
-	for(i = 0; i < user_frames; i++){
+	for(i=0; i<user_frames; i++){
 		if(!frametable[i].isfilled)
 			return &frametable[i];
 	}

@@ -2,8 +2,11 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "vm/spagetable.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -148,10 +151,45 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  /* Implementation of demand paging */
+
+  void* fpage_address = pg_round_down(fault_addr);
+  struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
+
+      uint8_t *kpage = assign_page();
+      if (kpage == NULL)
+        PANIC("assign_page page failed while loading from file");
+      if (spage_info->writable)
+      {
+        PANIC("NO page fault");
+      }
+  if (spage_info->instructions == FILE){
+
+      /* Load this page from a file. */
+      if (file_read (spage_info->file, kpage, spage_info->bytes_to_read) != (int) spage_info->bytes_to_read)
+        {
+          free_frame (kpage);
+          PANIC("reading the failed in page fault handler"); 
+        }
+
+        size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
+
+      memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);
+
+      
+    }
+
+  /* Add the page to the process's address space. */
+      if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
+        {
+          free_frame (kpage);
+          PANIC("install page failed."); 
+        }
+
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
@@ -159,6 +197,6 @@ page_fault (struct intr_frame *f)
 
   printf("There is no crying in Pintos!\n");
 
-  kill (f);
+  kill (f);*/
 }
 

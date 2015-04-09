@@ -115,9 +115,11 @@ struct thread
     struct thread * parent;               /* ptr to parent */
     struct semaphore wait_sema;           /*semaphore to synchronize the wait sys call */
     struct file * open_files[MAX_FILES];  /* list that hold all open files containing file descriptors */
-    struct file * code_file;               /* file that the thread is currently executing */
+    struct file * code_file;              /* file that the thread is currently executing */
     int index_fd;                         /* # calls to file open, starting from 2 */
 
+    /* Additions made for Project 3 */
+    struct list spage_table;              /* Supplemental page table for the thread.May need to palloc if it turns out that we can't access this later on*/
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

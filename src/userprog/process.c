@@ -18,6 +18,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "vm/spagetable.h"
 #define MAXARGS 25
 
 static thread_func start_process NO_RETURN;
@@ -123,7 +124,7 @@ process_wait (tid_t child_tid)
           
           //remove the status_holder (reap the child)
           list_remove(&s_holder->child_elem);
-          free_frame((void*) s_holder);
+          palloc_free_page((void*) s_holder);
 
           return number_status;
         }
@@ -372,7 +373,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -450,25 +450,35 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = assign_page();
+      /* Make an entry in the supplemental page table. */
+      struct spinfo * new_spinfo;
+      new_spinfo = palloc_get_page(0);
+      new_spinfo->file = file;
+      new_spinfo->bytes_to_read = page_read_bytes;
+      new_spinfo->writable = writable;
+      new_spinfo->upage_address = upage;
+      new_spinfo->instructions = FILE;
+      memset (new_spinfo, 0, sizeof (struct spinfo));
+      list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+      
+      /*uint8_t *kpage = assign_page();
       if (kpage == NULL)
-        return false;
+        return false;*/
 
       /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+     /* if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           free_frame (kpage);
           return false; 
         }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      memset (kpage + page_read_bytes, 0, page_zero_bytes);*/
 
       /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+      /*if (!install_page (upage, kpage, writable)) 
         {
           free_frame (kpage);
           return false; 
-        }
+        }*/
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -487,7 +497,18 @@ setup_stack (void **esp, char * argv[], int argc)
   bool success = false;
   char * arg_pointers[argc];
   
-  kpage = assign_page();
+  /* Make an entry in the supplemental page table for the stack. */
+  struct spinfo * new_spinfo;
+  new_spinfo = palloc_get_page(0);
+  new_spinfo->file = NULL;
+  new_spinfo->bytes_to_read = 0;
+  new_spinfo->writable = true;
+  new_spinfo->upage_address = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  new_spinfo->instructions = STACK;
+  memset (new_spinfo, 0, sizeof (struct spinfo));
+  list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+
+  /*kpage = assign_page();
   
   if (kpage != NULL) 
     {
@@ -496,7 +517,7 @@ setup_stack (void **esp, char * argv[], int argc)
         *esp = PHYS_BASE;
       else
         free_frame (kpage);
-    }
+    }*/
 
   /* Eddy drove here */
   char *my_esp = (char *)*esp;
@@ -557,7 +578,7 @@ setup_stack (void **esp, char * argv[], int argc)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+ bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

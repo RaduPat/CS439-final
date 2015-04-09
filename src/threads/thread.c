@@ -193,7 +193,7 @@ thread_create (const char *name, int priority,
 
   // create status holder
   struct status_holder * current_statusholder;
-  current_statusholder = assign_page ();
+  current_statusholder = palloc_get_page (0);
   memset (current_statusholder, 0, sizeof (struct status_holder));
   current_statusholder->status = -1;
   current_statusholder->tid = tid;
@@ -500,6 +500,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   /* Eddy and Radu drove here */
   list_init (&t->list_of_children);
+  list_init (&t->spage_table);
 
   sema_init (&t->exec_sema, 0);
   sema_init (&t->wait_sema, 0);
