@@ -1,4 +1,5 @@
 #include "vm/frametable.h"
+#include "vm/spagetable.h"
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -317,6 +318,17 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
+
+
+  struct list_elem * e;
+  for (e = list_begin (&thread_current()->spage_table);
+         e != list_end (&thread_current()->spage_table);)
+    {
+      struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
+      e = list_next (e);
+      list_remove(&spage_info->sptable_elem);
+      free(spage_info); 
+    }
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us

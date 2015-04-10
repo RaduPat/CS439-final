@@ -69,6 +69,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
 	/* Eddy drove here */
+
   check_pointer (f->esp);
 
   int *esp_int_pointer = (int*) f->esp;
@@ -80,12 +81,14 @@ syscall_handler (struct intr_frame *f UNUSED)
   		case SYS_HALT:
   			{
  					halt_h ();
-  	  	}
+  	  		}
   		break;
 			case SYS_EXIT:
 				{
 					int status;
+					//printf("$#$$$$$$$$$$$ esp_pointer+1 %x\n", esp_int_pointer+1);
 					check_pointer (esp_int_pointer+1);
+					//PANIC ("exits check_pointer");
 					status = (int) *(esp_int_pointer+1);
 					exit_h (status);
 				}
@@ -373,9 +376,12 @@ find_open_file (int fd)
 void
 check_pointer (void *pointer)
 {
+	//printf("@@@@@@@@@@@@@@@pointer parameter in check_pointer %x\n", pointer);
 	//check above phys base			check within its own page
-	if(is_kernel_vaddr (pointer) || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL)
+	if(is_kernel_vaddr (pointer) || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL) {
+		//PANIC ("###########we are in if statement\n");
 		exit_h (-1);
+	}
 	//exit_h will handle freeing the page and closing the process
 }
 

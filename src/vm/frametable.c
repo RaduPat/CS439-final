@@ -44,6 +44,7 @@ assign_page(){
 		PANIC("no empty frames available");
 	new_frame->page = new_page;
 	new_frame->isfilled = true;
+
 	return new_page;
 }
 
@@ -53,6 +54,5 @@ free_frame(void* page){
 	ASSERT(frame2free != NULL);
 
 	frame2free->isfilled = false;
-	palloc_free_page(frame2free->page);
 }
 

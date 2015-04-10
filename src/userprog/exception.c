@@ -155,12 +155,11 @@ page_fault (struct intr_frame *f)
 
   void* fpage_address = pg_round_down(fault_addr);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
-
       uint8_t *kpage = assign_page();
       if (kpage == NULL)
         PANIC("assign_page page failed while loading from file");
 
-  if (spage_info->instructions == FILE){
+  if (spage_info->instructions == FILE) {
 
       /* Load this page from a file. */
     file_seek(spage_info->file, spage_info->file_offset);
@@ -183,6 +182,8 @@ page_fault (struct intr_frame *f)
           free_frame (kpage);
           PANIC("install page failed."); 
         }
+      else
+        spage_info->frame_pointer = kpage;
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

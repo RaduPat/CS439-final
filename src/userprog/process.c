@@ -43,7 +43,7 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = assign_page();
+  fn_copy = malloc(strlen(file_name) + 1); 
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -59,8 +59,9 @@ process_execute (const char *file_name)
   if (!thread_current ()->childExecSuccess)
     return TID_ERROR;
   
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR) {
     free_frame (fn_copy); 
+  }
 
   return tid;
 }
@@ -82,8 +83,8 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
   thread_current ()->parent->childExecSuccess = success;
 
-  /* If load failed, quit. */
-  free_frame (file_name);
+  /* If load failed, quit. */ 
+  free(file_name);
   sema_up(&thread_current ()->parent->exec_sema);
   if (!success) {
     thread_exit ();
@@ -139,6 +140,17 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  struct list_elem * e;
+  for (e = list_begin (&cur->spage_table);
+         e != list_end (&cur->spage_table); e = list_next (e))
+    {
+      struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
+      if(spage_info->frame_pointer != NULL) 
+      {
+        free_frame(spage_info->frame_pointer);
+      }
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -466,6 +478,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       new_spinfo->writable = writable;
       new_spinfo->upage_address = upage;
       new_spinfo->instructions = FILE;
+      new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
       
       /*uint8_t *kpage = assign_page();
@@ -512,18 +525,19 @@ setup_stack (void **esp, char * argv[], int argc)
   new_spinfo->writable = true;
   new_spinfo->upage_address = ((uint8_t *) PHYS_BASE) - PGSIZE;
   new_spinfo->instructions = STACK;
+  new_spinfo->frame_pointer = NULL;
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
-  /*kpage = assign_page();
+  // kpage = assign_page();
   
-  if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        free_frame (kpage);
-    }*/
+  // if (kpage != NULL) 
+  //   {
+  //     bool success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  //     if (success)
+  //       *esp = PHYS_BASE;
+  //     else
+  //       free_frame (kpage);
+  //   }
 
   /* Eddy drove here */
   *esp = PHYS_BASE;
@@ -572,7 +586,7 @@ setup_stack (void **esp, char * argv[], int argc)
   *ptrSize4 = 0;
 
  *esp = (void *) ptrSize4;
-
+ //list_remove(&new_spinfo->sptable_elem);
   return true;// because we're doing demand paging.
 }
 

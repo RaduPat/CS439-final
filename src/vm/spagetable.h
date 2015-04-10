@@ -28,6 +28,8 @@ struct spinfo
 	uint8_t * upage_address;						/* Address of the user page */
 	struct list_elem sptable_elem; 			/* List element for the supplemental page table. */
 	enum load_instruction instructions; /*Enum for the load instructions */
+	void * frame_pointer;				/*pointer to the frame this page occupies
+										if it is null, the page is not in a frame */
 };
 
 struct spinfo * find_spinfo (struct list * info_list, uint8_t * page);

@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <debug.h>
 
-
-
 //meta data for a frame in the frame table 
 struct metaframe
 {
