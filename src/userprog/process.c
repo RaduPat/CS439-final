@@ -528,16 +528,18 @@ setup_stack (void **esp, char * argv[], int argc)
   new_spinfo->frame_pointer = NULL;
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
-  // kpage = assign_page();
+  kpage = assign_page();
   
-  // if (kpage != NULL) 
-  //   {
-  //     bool success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-  //     if (success)
-  //       *esp = PHYS_BASE;
-  //     else
-  //       free_frame (kpage);
-  //   }
+  if (kpage != NULL) 
+    {
+      bool success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      if (success)
+        *esp = PHYS_BASE;
+      else {
+        free_frame (kpage);
+        palloc_free_page (kpage);
+      }
+    }
 
   /* Eddy drove here */
   *esp = PHYS_BASE;

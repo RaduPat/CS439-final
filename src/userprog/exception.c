@@ -152,17 +152,34 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /* Implementation of demand paging */
+  printf("##### fault_addr: %x\n", fault_addr);
+  printf("##### f->esp: %x\n", f->esp);
+  printf("##### f->esp-32 bytes: %x\n", (f->esp-0x20));
+  if(fault_addr < f->esp && fault_addr > (f->esp - 0x20)) // esp < fault_addr < (esp - 32 bytes)
+  {
+    ASSERT(0);
+    struct spinfo * new_spinfo;
+    new_spinfo = malloc(sizeof (struct spinfo));
+    new_spinfo->file = NULL;
+    new_spinfo->bytes_to_read = 0;
+    new_spinfo->writable = true;
+    new_spinfo->upage_address = pg_round_down(fault_addr);
+    new_spinfo->instructions = STACK;
+    new_spinfo->frame_pointer = NULL;
+    list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+  }
 
   void* fpage_address = pg_round_down(fault_addr);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
-      uint8_t *kpage = assign_page();
-      if (kpage == NULL)
-        PANIC("assign_page page failed while loading from file");
+  ASSERT(spage_info != NULL);
+  uint8_t *kpage = assign_page();
+  if (kpage == NULL)
+    PANIC("assign_page page failed while loading from file");
 
   if (spage_info->instructions == FILE) {
 
       /* Load this page from a file. */
-    file_seek(spage_info->file, spage_info->file_offset);
+      file_seek(spage_info->file, spage_info->file_offset);
       if (file_read (spage_info->file, kpage, spage_info->bytes_to_read) != (int) spage_info->bytes_to_read)
         {
           free_frame (kpage);
@@ -171,9 +188,7 @@ page_fault (struct intr_frame *f)
 
         size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
 
-      memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);
-
-      
+      memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);      
     }
 
   /* Add the page to the process's address space. */
