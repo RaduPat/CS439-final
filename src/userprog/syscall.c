@@ -378,7 +378,7 @@ check_pointer (void *pointer)
 {
 	//printf("@@@@@@@@@@@@@@@pointer parameter in check_pointer %x\n", pointer);
 	//check above phys base			check within its own page
-	if(is_kernel_vaddr (pointer) || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL) {
+	if(is_kernel_vaddr (pointer) /* || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL*/) {
 		//PANIC ("###########we are in if statement\n");
 		exit_h (-1);
 	}

@@ -334,6 +334,12 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   sema_up (&thread_current ()->wait_sema);
+
+  if(thread_current ()->status_number == -1)
+  {
+    PANIC ("panic in thread_exit");
+  }
+
   printf ("%s: exit(%d)\n", thread_current ()->name,
   thread_current ()->status_number);
   file_close(thread_current ()-> code_file);

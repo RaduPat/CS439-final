@@ -155,9 +155,8 @@ page_fault (struct intr_frame *f)
   printf("##### fault_addr: %x\n", fault_addr);
   printf("##### f->esp: %x\n", f->esp);
   printf("##### f->esp-32 bytes: %x\n", (f->esp-0x20));
-  if(fault_addr < f->esp && fault_addr > (f->esp - 0x20)) // esp < fault_addr < (esp - 32 bytes)
+  if((fault_addr < PHYS_BASE && fault_addr >= f->esp) || f->esp - 0x20 == fault_addr || f->esp - 0x04 == fault_addr) //  esp < fault_addr < PHYS_BASE OR esp-32 = fault_addr OR esp-4 = fault_addr
   {
-    ASSERT(0);
     struct spinfo * new_spinfo;
     new_spinfo = malloc(sizeof (struct spinfo));
     new_spinfo->file = NULL;
@@ -171,7 +170,16 @@ page_fault (struct intr_frame *f)
 
   void* fpage_address = pg_round_down(fault_addr);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
-  ASSERT(spage_info != NULL);
+  if(spage_info == NULL)
+  {
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel");
+
+    kill (f);
+  }
   uint8_t *kpage = assign_page();
   if (kpage == NULL)
     PANIC("assign_page page failed while loading from file");
