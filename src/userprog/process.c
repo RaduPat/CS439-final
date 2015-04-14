@@ -60,7 +60,7 @@ process_execute (const char *file_name)
     return TID_ERROR;
   
   if (tid == TID_ERROR) {
-    free_frame (fn_copy); 
+    free (fn_copy); 
   }
 
   return tid;
@@ -83,9 +83,10 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
   thread_current ()->parent->childExecSuccess = success;
 
-  /* If load failed, quit. */ 
   free(file_name);
   sema_up(&thread_current ()->parent->exec_sema);
+  
+  /* If load failed, quit. */ 
   if (!success) {
     thread_exit ();
   }

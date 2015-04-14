@@ -8,7 +8,7 @@
 struct metaframe
 {
 	bool isfilled;
-	void *page;	
+	void *page;				// Kernel page associated with a frame
 };
 
 //get a metaframe in the table by page
