@@ -348,10 +348,6 @@ intr_handler (struct intr_frame *frame)
   bool external;
   intr_handler_func *handler;
 
-  printf(">>>>>>>>>>>>> ESP: %x\n", frame->esp);
-  struct tss * temp = tss_get();
-  printf(">>>>>>>>>>>>> ESP from tss: %x\n", temp->esp);
-  PANIC("I'm in intr_handler!!!!");
 
   /* External interrupts are special.
      We only handle one at a time (so interrupts must be off)

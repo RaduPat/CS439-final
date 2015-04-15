@@ -71,6 +71,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	/* Eddy drove here */
 
   check_pointer (f->esp);
+  thread_current()->personal_esp = f->esp;
 
   int *esp_int_pointer = (int*) f->esp;
   int syscall_number = *esp_int_pointer;

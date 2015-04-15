@@ -8,9 +8,10 @@
 struct metaframe
 {
 	bool isfilled;
-	void *page;				// Kernel page associated with a frame
+	void *page;	
 };
-
+//dynamically allocate memory for the frame table
+//void init_frametable(void);
 //get a metaframe in the table by page
 struct metaframe* get_metaframe_bypage(void* page);
 //get the metaframe at an index within the frame table

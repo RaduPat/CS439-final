@@ -116,7 +116,7 @@ check_sector (struct block *block, block_sector_t sector)
 /* Reads sector SECTOR from BLOCK into BUFFER, which must
    have room for BLOCK_SECTOR_SIZE bytes.
    Internally synchronizes accesses to block devices, so external
-   per-block device locking is not needed. */
+   per-block device locking is unneeded. */
 void
 block_read (struct block *block, block_sector_t sector, void *buffer)
 {

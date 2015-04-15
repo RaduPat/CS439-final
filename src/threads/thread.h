@@ -117,6 +117,7 @@ struct thread
     struct file * open_files[MAX_FILES];  /* list that hold all open files containing file descriptors */
     struct file * code_file;              /* file that the thread is currently executing */
     int index_fd;                         /* # calls to file open, starting from 2 */
+    void * personal_esp;                  /* esp of the user to handle case where the frame->esp is referencing the kernel esp for stack growth*/
 
     /* Additions made for Project 3 */
     struct list spage_table;              /* Supplemental page table for the thread.May need to palloc if it turns out that we can't access this later on*/

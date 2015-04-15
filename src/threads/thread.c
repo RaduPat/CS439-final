@@ -208,6 +208,8 @@ thread_create (const char *name, int priority,
 
   list_push_back(&thread_current()->list_of_children, &current_statusholder->child_elem);
 
+  t->personal_esp = NULL;
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -335,10 +337,10 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   sema_up (&thread_current ()->wait_sema);
 
-  if(thread_current ()->status_number == -1)
+  /*if(thread_current ()->status_number == -1)
   {
     PANIC ("panic in thread_exit");
-  }
+  }*/
 
   printf ("%s: exit(%d)\n", thread_current ()->name,
   thread_current ()->status_number);
