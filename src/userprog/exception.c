@@ -152,22 +152,16 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /* Implementation of demand paging */
-  void* esp_holder = thread_current()->personal_esp;
-  if((fault_addr < PHYS_BASE && fault_addr >= f->esp) || f->esp - 0x20 == fault_addr || f->esp - 0x04 == fault_addr) //  esp < fault_addr < PHYS_BASE OR esp-32 = fault_addr OR esp-4 = fault_addr
+  void* esp_holder;
+  if (f->esp >= PHYS_BASE)
   {
-    struct spinfo * new_spinfo;
-    new_spinfo = malloc(sizeof (struct spinfo));
-    new_spinfo->file = NULL;
-    new_spinfo->bytes_to_read = 0;
-    new_spinfo->writable = true;
-    new_spinfo->upage_address = pg_round_down(fault_addr);
-    new_spinfo->instructions = STACK;
-    new_spinfo->frame_pointer = NULL;
-    list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+    esp_holder = thread_current()->personal_esp;
   }
-  else if(esp_holder != NULL)
-  {
-    if((fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr) 
+  else{
+    esp_holder = f->esp;
+  }
+  
+  if((fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr) 
     {
       struct spinfo * new_spinfo;
       new_spinfo = malloc(sizeof (struct spinfo));
@@ -179,8 +173,8 @@ page_fault (struct intr_frame *f)
       new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
     }
-  }
 
+  
   void* fpage_address = pg_round_down(fault_addr);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   if(spage_info == NULL)

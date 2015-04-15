@@ -1,4 +1,5 @@
 #include "threads/init.h"
+#include "vm/frametable.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -126,6 +127,9 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+  /* Initialize virtual memory items */
+  init_frametable(init_ram_pages);
 
   printf ("Boot complete.\n");
   

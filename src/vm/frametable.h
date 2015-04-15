@@ -3,15 +3,18 @@
 
 #include <stdbool.h>
 #include <debug.h>
+#include <stdint.h>
+#include "threads/thread.h"
 
 //meta data for a frame in the frame table 
 struct metaframe
 {
 	bool isfilled;
 	void *page;	
+	struct thread * owner;
 };
 //dynamically allocate memory for the frame table
-//void init_frametable(void);
+void init_frametable(uint32_t init_ram_pages);
 //get a metaframe in the table by page
 struct metaframe* get_metaframe_bypage(void* page);
 //get the metaframe at an index within the frame table

@@ -3,23 +3,22 @@
 #include <inttypes.h>
 
 
-extern uint32_t init_ram_pages;
-const uint32_t user_frames = 1024; //init_ram_pages/2;
+int num_user_frames;
 
-struct metaframe frametable[1024]; 
+struct metaframe * frametable; 
 
-/*void
-init_frametable()
+void
+init_frametable(uint32_t init_ram_pages)
 {
-	user_frames = init_ram_pages/2;
-	frametable = calloc(sizeof(struct metaframe), user_frames);
+	num_user_frames = (int) init_ram_pages/2;
+	frametable = calloc(sizeof(struct metaframe), num_user_frames);
 	int i;
-	for(i = 0; i < user_frames; i++) 
+	for(i = 0; i < num_user_frames; i++) 
 	{
 		frametable[i].page = NULL;
 		frametable[i].isfilled = false;
 	}
-}*/
+}
 
 struct metaframe* 
 get_metaframe_byindex(int index)
@@ -30,7 +29,7 @@ get_metaframe_byindex(int index)
 struct metaframe* 
 get_metaframe_bypage(void* page){
 	int i;
-	for(i = 0; i < user_frames; i++){
+	for(i = 0; i < num_user_frames; i++){
 		if(frametable[i].page == page){
 			return &frametable[i];
 		}
@@ -41,7 +40,7 @@ get_metaframe_bypage(void* page){
 struct metaframe* 
 next_empty_frame(){
 	int i;
-	for(i=0; i<user_frames; i++){
+	for(i=0; i<num_user_frames; i++){
 		if(!frametable[i].isfilled)
 			return &frametable[i];
 	}
@@ -58,6 +57,7 @@ assign_page(){
 		PANIC("no empty frames available");
 	new_frame->page = new_page;
 	new_frame->isfilled = true;
+	new_frame->owner = thread_current();
 
 	return new_page;
 }

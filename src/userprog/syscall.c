@@ -379,9 +379,12 @@ check_pointer (void *pointer)
 {
 	//printf("@@@@@@@@@@@@@@@pointer parameter in check_pointer %x\n", pointer);
 	//check above phys base			check within its own page
-	if(is_kernel_vaddr (pointer) /* || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL*/) {
-		//PANIC ("###########we are in if statement\n");
-		exit_h (-1);
+	if(is_kernel_vaddr (pointer) || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL) {
+		if (!((pointer < PHYS_BASE && pointer >= thread_current()->personal_esp) || thread_current()->personal_esp - 0x20 == pointer || thread_current()->personal_esp - 0x04 == pointer))
+		// Quit only if it isn't an invalid stack access.
+		{
+			exit_h (-1);
+		}
 	}
 	//exit_h will handle freeing the page and closing the process
 }
