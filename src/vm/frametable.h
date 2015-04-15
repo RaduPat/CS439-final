@@ -17,8 +17,6 @@ struct metaframe
 void init_frametable(uint32_t init_ram_pages);
 //get a metaframe in the table by page
 struct metaframe* get_metaframe_bypage(void* page);
-//get the metaframe at an index within the frame table
-struct metaframe* get_metaframe_byindex(int index);
 //get the next available metaframe within the frame table
 struct metaframe* next_empty_frame(void);
 //assign a page for the frame

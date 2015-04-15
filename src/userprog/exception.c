@@ -174,7 +174,7 @@ page_fault (struct intr_frame *f)
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
     }
 
-  
+
   void* fpage_address = pg_round_down(fault_addr);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   if(spage_info == NULL)
@@ -204,6 +204,10 @@ page_fault (struct intr_frame *f)
         size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
 
       memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);      
+    }
+    else if (spage_info->instructions == SWAP){
+      read_from_swap(spage_info->index_into_swapspace, kpage);
+      free_metaswap_entry(spage_info->index_into_swapspace);
     }
 
   /* Add the page to the process's address space. */

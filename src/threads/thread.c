@@ -328,6 +328,11 @@ thread_exit (void)
     {
       struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
       e = list_next (e);
+
+      if(spage_info->instructions == SWAP){
+        free_metaswap_entry(spage_info->index_into_swap);
+      }
+
       list_remove(&spage_info->sptable_elem);
       free(spage_info); 
     }
