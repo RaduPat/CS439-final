@@ -13,13 +13,17 @@ struct metaswap_entry
 	enum load_instruction instructions_for_pageheld; // tells us the kind of page held
 };
 
+//initialize the swaptable
+void swaptable_init(void);
 //get the metaswap_entry at an index within the swap table
-struct metaswap_entry* get_metaswap_entry_byindex((int index);
+struct metaswap_entry* get_metaswap_entry_byindex(int index);
 //get the next available metaswap_entry within the swap table, returns the index which can be used to access it.
-int metaswap_entry* next_empty_metaswap_entry(void);
-//assign a page for the swap entry
-void* assign_swap_page(void);
+struct metaswap_entry* next_empty_metaswap_entry(void);
+//move the data in *page into the swap space
+int move_into_swap(void* page, enum load_instruction instruction);
+//read data from the swapspace at swaptable[index] into the *page 
+void read_from_swap(int index, void *page);
 //free up a swap entry
-void free_swap_entry(void* page);
+enum load_instruction free_metaswap_entry(int index);
 
 #endif /* vm/swaptable.h */

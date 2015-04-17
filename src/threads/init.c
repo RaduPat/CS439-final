@@ -1,5 +1,6 @@
 #include "threads/init.h"
 #include "vm/frametable.h"
+#include "vm/swaptable.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -130,6 +131,7 @@ main (void)
 
   /* Initialize virtual memory items */
   init_frametable(init_ram_pages);
+  swaptable_init();
 
   printf ("Boot complete.\n");
   

@@ -2,6 +2,7 @@
 #include "threads/palloc.h"
 #include "vm/swaptable.h"
 #include <inttypes.h>
+#include "threads/vaddr.h"
 
 
 int num_user_frames;
@@ -16,7 +17,14 @@ void
 init_frametable(uint32_t init_ram_pages)
 {
 	lock_init(&ft_lock);
-	num_user_frames = (int) init_ram_pages/2;
+
+	/* Free memory starts at 1 MB and runs to the end of RAM. */
+  uint8_t *free_start = ptov (1024 * 1024);
+  uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
+  size_t free_pages = (free_end - free_start) / PGSIZE;
+  size_t user_pages = free_pages / 2;
+
+	num_user_frames = user_pages - 4;
 	frametable = calloc(sizeof(struct metaframe), num_user_frames);
 	int i;
 	for(i = 0; i < num_user_frames; i++) 
@@ -24,6 +32,19 @@ init_frametable(uint32_t init_ram_pages)
 		frametable[i].page = NULL;
 		frametable[i].isfilled = false;
 	}
+}
+
+int num_free_frames(){
+	int sum = 0;
+	int i;
+	for (i = 0; i < num_user_frames; ++i)
+	{
+		if (frametable[i].isfilled)
+		{
+			sum++;
+		}
+	}
+	return sum;
 }
 
 struct metaframe* 
@@ -43,7 +64,10 @@ next_empty_frame(){
 	int i;
 	for(i=0; i<num_user_frames; i++){
 		if(!frametable[i].isfilled)
-			return &frametable[i];
+			 {
+			 		lock_release(&ft_lock);
+			 		return &frametable[i];
+			 }
 	}
 	lock_release(&ft_lock);
 
@@ -52,12 +76,15 @@ next_empty_frame(){
 
 void* 
 assign_page(){
-	void* new_page = palloc_get_page(PAL_USER | PAL_ZERO);
-	if(new_page==NULL)
-		PANIC("no available pages");
 	struct metaframe* new_frame = next_empty_frame();
 	if(new_frame==NULL)
 		PANIC("no empty frames available");
+	void* new_page = palloc_get_page(PAL_USER | PAL_ZERO);
+	//printf("*********** new_page: %x\n", new_page);
+	if(new_page==NULL){
+		printf("######### size of frametable: %d/%d\n", num_free_frames(), num_user_frames);
+		//PANIC("no available pages");
+	}
 	lock_acquire(&ft_lock);
 	new_frame->page = new_page;
 	new_frame->isfilled = true;
@@ -82,27 +109,40 @@ static struct metaframe*
 evict_page()
 {
 
-	struct spinfo * current_spinfo = find_spinfo((frametable[clock_hand].owner)->spage_table, frametable[clock_hand].page);
+	struct spinfo * current_spinfo = find_spinfo_by_kpage((&(frametable[clock_hand].owner)->spage_table), frametable[clock_hand].page);
+	if (current_spinfo == NULL)
+	{
+		printf("################## null current_spinfo!\n");
+		printf("clock_hand: %d\n", clock_hand);
+		printf("frametable[clock_hand].page: %x\n", frametable[clock_hand].page);
+		printf("frametable[clock_hand].owner: %x\n", frametable[clock_hand].owner);
+		printf("thread name: %s\n", frametable[clock_hand].owner->name);
+	}
 	void * current_page = current_spinfo->upage_address;
 	while(pagedir_is_accessed((frametable[clock_hand].owner)->pagedir, current_page)){
 		pagedir_set_accessed((frametable[clock_hand].owner)->pagedir, current_page, false);
 		clock_hand++;
-		if (clock_hand >= user_frames)
+		if (clock_hand >= num_user_frames)
 		{
 			clock_hand = 0;// move the clock_hand back to the start
 		}
-		current_spinfo = find_spinfo((frametable[clock_hand].owner)->spage_table, frametable[clock_hand].page);
+		current_spinfo = find_spinfo_by_kpage((&(frametable[clock_hand].owner)->spage_table), frametable[clock_hand].page);
 		current_page = current_spinfo->upage_address;
 	}
 
-	// remove page from owner's page table, and write it to swap
-	current_spinfo->index_into_swap = move_into_swap(frametable[clock_hand].page);
-	set_type_of_page_swapped_in(current_spinfo->index_into_swap, current_spinfo->instructions);
+	// remove page from owner's page table, and write it to swap. check to see if the page is for stack or dirty
+	if(current_spinfo->instructions == STACK || pagedir_is_dirty((frametable[clock_hand].owner)->pagedir, current_page))
+	{
+		current_spinfo->index_into_swap = move_into_swap(frametable[clock_hand].page, current_spinfo->instructions);
+	}
+	
 	pagedir_clear_page(frametable[clock_hand].owner->pagedir, current_page);
 
 	// evict the chosen page from the frame
-	find_spinfo((frametable[clock_hand].owner)->spage_table, frametable[clock_hand].page)->instructions = SWAP;
+	current_spinfo->instructions = SWAP;
+	current_spinfo->kpage_address = NULL;//setting it to null just here would suffice because in all other locations the spinfo is freed.
 	free_frame(frametable[clock_hand].page);
+	palloc_free_page(frametable[clock_hand].page);//freeing the page because it becomes garbage after this
 
 	return &frametable[clock_hand];
 }

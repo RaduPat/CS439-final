@@ -477,6 +477,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       new_spinfo->bytes_to_read = page_read_bytes;
       new_spinfo->writable = writable;
       new_spinfo->upage_address = upage;
+      new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = FILE;
       new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
@@ -529,6 +530,7 @@ setup_stack (void **esp, char * argv[], int argc)
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
   kpage = assign_page();
+  new_spinfo->kpage_address = kpage;
   
   if (kpage != NULL) 
     {

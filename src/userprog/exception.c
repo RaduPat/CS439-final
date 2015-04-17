@@ -153,7 +153,7 @@ page_fault (struct intr_frame *f)
 
   /* Implementation of demand paging */
   void* esp_holder;
-  if (f->esp >= PHYS_BASE)
+  if (!user)
   {
     esp_holder = thread_current()->personal_esp;
   }
@@ -169,6 +169,7 @@ page_fault (struct intr_frame *f)
       new_spinfo->bytes_to_read = 0;
       new_spinfo->writable = true;
       new_spinfo->upage_address = pg_round_down(fault_addr);
+      new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = STACK;
       new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
@@ -187,9 +188,16 @@ page_fault (struct intr_frame *f)
 
     kill (f);
   }
+  if (!spage_info->writable && write)
+  {
+    // Writing to an un writable location
+    thread_exit();
+  }
+
   uint8_t *kpage = assign_page();
   if (kpage == NULL)
     PANIC("assign_page page failed while loading from file");
+  spage_info->kpage_address = kpage;
 
   if (spage_info->instructions == FILE) {
 
@@ -204,11 +212,13 @@ page_fault (struct intr_frame *f)
         size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
 
       memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);      
-    }
-    else if (spage_info->instructions == SWAP){
-      read_from_swap(spage_info->index_into_swapspace, kpage);
-      free_metaswap_entry(spage_info->index_into_swapspace);
-    }
+  }
+  else if (spage_info->instructions == SWAP)
+  {
+    read_from_swap(spage_info->index_into_swap, kpage);
+    enum load_instruction saved_instruction = free_metaswap_entry(spage_info->index_into_swap);
+    spage_info->instructions = saved_instruction;
+  }
 
   /* Add the page to the process's address space. */
       if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
