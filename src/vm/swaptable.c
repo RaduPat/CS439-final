@@ -88,7 +88,7 @@ enum load_instruction
 free_metaswap_entry(int index){
 	lock_acquire(&swap_lock);
 	struct metaswap_entry* swap_entry2free = get_metaswap_entry_byindex(index);
-	//ASSERT(swap_entry2free->isfilled);
+	ASSERT(swap_entry2free->isfilled);
 	enum load_instruction saved_instruction = swap_entry2free->instructions_for_pageheld;
 	swap_entry2free->isfilled = false;
 	swap_entry2free->instructions_for_pageheld = USELESS;

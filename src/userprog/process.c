@@ -146,9 +146,9 @@ process_exit (void)
          e != list_end (&cur->spage_table); e = list_next (e))
     {
       struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
-      if(spage_info->frame_pointer != NULL) 
+      if(spage_info->kpage_address != NULL) 
       {
-        free_frame(spage_info->frame_pointer);
+        free_frame(spage_info->kpage_address);
       }
     }
 
@@ -479,9 +479,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       new_spinfo->upage_address = upage;
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = FILE;
-      new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
       
+//      printf("((((((((( created spinfo for this upage: ))))))))) : %x \n", upage);
+
       /*uint8_t *kpage = assign_page();
       if (kpage == NULL)
         return false;*/
@@ -526,7 +527,6 @@ setup_stack (void **esp, char * argv[], int argc)
   new_spinfo->writable = true;
   new_spinfo->upage_address = ((uint8_t *) PHYS_BASE) - PGSIZE;
   new_spinfo->instructions = STACK;
-  new_spinfo->frame_pointer = NULL;
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
   kpage = assign_page();

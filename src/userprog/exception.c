@@ -171,8 +171,8 @@ page_fault (struct intr_frame *f)
       new_spinfo->upage_address = pg_round_down(fault_addr);
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = STACK;
-      new_spinfo->frame_pointer = NULL;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+      printf("$$$$$$$ in Stack growth handler\n");
     }
 
 
@@ -180,6 +180,10 @@ page_fault (struct intr_frame *f)
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   if(spage_info == NULL)
   {
+    printf("%x\n", thread_current());
+    printf("!!!!!!!!!! fpage_address: %x\n", fpage_address);
+    printf("!!!!!!!!!! fault_addr: %x\n", fault_addr);
+    PANIC("stop");
     printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
@@ -197,7 +201,7 @@ page_fault (struct intr_frame *f)
   uint8_t *kpage = assign_page();
   if (kpage == NULL)
     PANIC("assign_page page failed while loading from file");
-  spage_info->kpage_address = kpage;
+  //printf("********* reached exception.c line 205\n");
 
   if (spage_info->instructions == FILE) {
 
@@ -220,6 +224,9 @@ page_fault (struct intr_frame *f)
     spage_info->instructions = saved_instruction;
   }
 
+
+  //printf("********* reached exception.c line 229\n");
+
   /* Add the page to the process's address space. */
       if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
         {
@@ -227,8 +234,9 @@ page_fault (struct intr_frame *f)
           PANIC("install page failed."); 
         }
       else
-        spage_info->frame_pointer = kpage;
+        spage_info->kpage_address = kpage;
 
+  //printf("********* reached exception.c line 240\n");
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

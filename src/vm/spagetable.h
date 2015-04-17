@@ -30,8 +30,6 @@ struct spinfo
 	uint8_t * kpage_address;						/* Address of the kernel page containing this page */
 	struct list_elem sptable_elem; 			/* List element for the supplemental page table. */
 	enum load_instruction instructions; /*Enum for the load instructions */
-	void * frame_pointer;				/*pointer to the frame this page occupies
-										if it is null, the page is not in a frame */
 	int index_into_swap;				/* an index into the block in swapspace which contains this page */
 };
 

@@ -13,6 +13,12 @@ struct lock ft_lock;
 
 uint32_t clock_hand = 0;
 
+//debug info
+
+int num_pages_assigned = 0;
+
+//End
+
 void
 init_frametable(uint32_t init_ram_pages)
 {
@@ -24,7 +30,7 @@ init_frametable(uint32_t init_ram_pages)
   size_t free_pages = (free_end - free_start) / PGSIZE;
   size_t user_pages = free_pages / 2;
 
-	num_user_frames = user_pages - 4;
+	num_user_frames = user_pages - 1;
 	frametable = calloc(sizeof(struct metaframe), num_user_frames);
 	int i;
 	for(i = 0; i < num_user_frames; i++) 
@@ -66,6 +72,10 @@ next_empty_frame(){
 		if(!frametable[i].isfilled)
 			 {
 			 		lock_release(&ft_lock);
+			 		printf("********** not doing eviction\n");
+			 		printf("kpage_address: %x\n", frametable[i].page);
+			 		printf("owner: %x\n", frametable[i].owner);
+			 		printf("metaframe address: %x\n", &frametable[i]);
 			 		return &frametable[i];
 			 }
 	}
@@ -88,7 +98,12 @@ assign_page(){
 	lock_acquire(&ft_lock);
 	new_frame->page = new_page;
 	new_frame->isfilled = true;
+	num_pages_assigned++;
 	new_frame->owner = thread_current();
+	printf("------------ frame owner in assign_page: %x\n", new_frame->owner);
+	printf("------------ frame kpage_address in assign_page: %x\n", new_frame->page);
+	printf("------------ metaframe address in assign_page: %x\n", new_frame);
+	printf("=========== Number of pages assigned: %d\n", num_pages_assigned);
 	lock_release(&ft_lock);
 
 	return new_page;
@@ -130,16 +145,28 @@ evict_page()
 		current_page = current_spinfo->upage_address;
 	}
 
+	if (frametable[clock_hand].isfilled)
+	{
+		printf("########## isfilled : true\n");
+	}
+	else{
+		printf("########## isfilled : false\n");
+	}
+	printf("meta frame address: %x\n", &frametable[clock_hand]);
+	printf("frame kpage address: %x\n", frametable[clock_hand].page);
+	printf("frame owner address: %x\n", frametable[clock_hand].owner);
+	printf("upage that's getting thrown out: %x\n", current_page);
+
 	// remove page from owner's page table, and write it to swap. check to see if the page is for stack or dirty
 	if(current_spinfo->instructions == STACK || pagedir_is_dirty((frametable[clock_hand].owner)->pagedir, current_page))
 	{
 		current_spinfo->index_into_swap = move_into_swap(frametable[clock_hand].page, current_spinfo->instructions);
+		current_spinfo->instructions = SWAP;
 	}
 	
 	pagedir_clear_page(frametable[clock_hand].owner->pagedir, current_page);
 
 	// evict the chosen page from the frame
-	current_spinfo->instructions = SWAP;
 	current_spinfo->kpage_address = NULL;//setting it to null just here would suffice because in all other locations the spinfo is freed.
 	free_frame(frametable[clock_hand].page);
 	palloc_free_page(frametable[clock_hand].page);//freeing the page because it becomes garbage after this
