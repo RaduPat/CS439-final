@@ -6,7 +6,7 @@
 #include "tests/lib.h"
 #include "tests/main.h"
 
-#define SIZE (2 * 1024 * 1024)
+#define SIZE (388 * 4 * 1024)
 
 static char buf[SIZE];
 
@@ -19,6 +19,8 @@ test_main (void)
   /* Initialize to 0x5a. */
   msg ("initialize");
   memset (buf, 0x5a, sizeof buf);
+
+  printf("______________ finished memset!\n");
 
   /* Check that it's all 0x5a. */
   msg ("read pass");

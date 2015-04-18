@@ -14,6 +14,10 @@ static long long page_fault_cnt;
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 
+//DEBUG...........
+int num_stack_swap = 0;
+//END
+
 /* Registers handlers for interrupts that can be caused by user
    programs.
 
@@ -129,7 +133,6 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
      data.  It is not necessarily the address of the instruction
@@ -138,6 +141,7 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
+
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -161,7 +165,10 @@ page_fault (struct intr_frame *f)
     esp_holder = f->esp;
   }
   
-  if((fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr) 
+  void* fpage_address = pg_round_down(fault_addr);
+  struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
+  bool isstackaccess = (fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr;
+  if(isstackaccess && spage_info == NULL) 
     {
       struct spinfo * new_spinfo;
       new_spinfo = malloc(sizeof (struct spinfo));
@@ -172,18 +179,19 @@ page_fault (struct intr_frame *f)
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = STACK;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
-      printf("$$$$$$$ in Stack growth handler\n");
+      //printf("$$$$$$$ in Stack growth handler\n");
     }
 
+    printf("######===== faulting address: %x\n", fpage_address);
 
-  void* fpage_address = pg_round_down(fault_addr);
-  struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
+  spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   if(spage_info == NULL)
   {
-    printf("%x\n", thread_current());
+    debug_backtrace();
+    printf("!!!!!!!!!! %x\n", thread_current());
     printf("!!!!!!!!!! fpage_address: %x\n", fpage_address);
     printf("!!!!!!!!!! fault_addr: %x\n", fault_addr);
-    PANIC("stop");
+    //PANIC("stop");
     printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
@@ -196,6 +204,16 @@ page_fault (struct intr_frame *f)
   {
     // Writing to an un writable location
     thread_exit();
+  }
+
+  if(spage_info->instructions == STACK){
+    printf("&&&&&&&& in stack page fault handler\n");
+  }
+  else if(spage_info->instructions == FILE){
+    printf("&&&&&&&& in file page fault handler\n");
+  }
+  else if(spage_info->instructions == SWAP){
+    printf("&&&&&&&& in swap page fault handler\n");
   }
 
   uint8_t *kpage = assign_page();
@@ -219,10 +237,23 @@ page_fault (struct intr_frame *f)
   }
   else if (spage_info->instructions == SWAP)
   {
+    //printf("$$$$$$$ swapped in a page\n");
     read_from_swap(spage_info->index_into_swap, kpage);
+        /*int i;
+        for (i = 0; i < 100; ++i)
+        {
+          printf("# (%c) %x | ", *(((char*) kpage) + i + 1000), ((char*) kpage) + i + 1000);
+        }
+        PANIC("dealing with stack");*/
     enum load_instruction saved_instruction = free_metaswap_entry(spage_info->index_into_swap);
     spage_info->instructions = saved_instruction;
+    if (saved_instruction == STACK)
+    {
+      num_stack_swap++;
+    }
   }
+
+  //printf("^&^^^^^^^^^^^^ num_stack_swap: %d\n", num_stack_swap);
 
 
   //printf("********* reached exception.c line 229\n");
@@ -233,8 +264,11 @@ page_fault (struct intr_frame *f)
           free_frame (kpage);
           PANIC("install page failed."); 
         }
-      else
+      else {
         spage_info->kpage_address = kpage;
+        if(kpage == NULL)
+          PANIC("kpage == NULL");
+      }
 
   //printf("********* reached exception.c line 240\n");
   /* To implement virtual memory, delete the rest of the function
