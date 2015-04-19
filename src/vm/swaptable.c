@@ -66,34 +66,11 @@ move_into_swap(void* page, enum load_instruction instruction, bool isdirty) {
 		PANIC("no empty swap entries available");
 
 	char * buffer = (char*) page;
-	//char * buffer = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 	int i;
-	if (instruction == STACK)
+	for(i = 0; i < 8; i++)
 	{
-		/*printf("@@@@@@@@@@@@@ in move_into_swap()\n");
-		for (i = 0; i < 100; ++i)
-		{
-			printf("# (%x)", ((char *)page)[4096 - i]);
-		}*/
-	}
-/*		if (instruction == STACK)
-		{
-			printf("||||||||||| %x\n", buffer);
-		}
-*/	for(i = 0; i < 8; i++)
-	{
-		//printf("++++++++++++ %d\n", 8 * new_swap_entry->swap_index + i);
 		block_write(swap_block, 8 * new_swap_entry->swap_index + i, buffer);
 		buffer += BLOCK_SECTOR_SIZE;
-	}
-	//printf("(%d %d)\n", new_swap_entry->swap_index, instruction);
-	if (instruction == STACK){
-	/*printf("\n &&&&&&& just printing for stack\n");
-		char * temp = (char *) page;
-		for (i = 0; i < 4096; ++i)
-		{
-			printf("# (%x) %x | ", temp[i], temp+i);
-		}*/
 	}
 	lock_acquire(&swap_lock);
 	new_swap_entry->isfilled = true;
@@ -106,46 +83,17 @@ move_into_swap(void* page, enum load_instruction instruction, bool isdirty) {
 void
 read_from_swap(int index, void *page)
 {
-	//printf("(((((%d %x)))))\n", index, page);
 	ASSERT(index != -1);
 	if(page == NULL)
 		PANIC("Page in read_from_swap == NULL");
 	char * buffer = (char*) page;
 	int i;
-	/*printf("$$$$$$$$$$ Start\n");
-	for (i = 0; i < 100; ++i)
-	{
-		printf("# (%x)",  buffer[4096 - i]);
-	}*/
-	//char tempbuffer[512];
 	for(i = 0; i < 8; i++)
 	{
-		/*printf("+++++=======+++++++::::::: buffer address: %x\n", buffer);
-		printf("------------------ %d\n", 8 * index + i);*/
-		/*if (i == 7)
-		{
-			block_read(swap_block, 8*index + i, tempbuffer);
-		}// the data is stored in the reverse order? Index number 7 is appearing from (0,512) in buffer[]*/
-		block_read(swap_block, 8 * index + i, buffer);//block_read into the buffer not working?
+		block_read(swap_block, 8 * index + i, buffer);
 		buffer += BLOCK_SECTOR_SIZE;
 	}
-	/*printf("$$$$$$$$$$ Start\n");
-	for (i = 0; i < 512; ++i)
-	{
-		printf("-(%x)- ", tempbuffer[i]);
-	}
-	for (i = 3584; i < 4096; ++i)
-	{
-		printf("# (%x)", buffer[i]);
-	}
-	printf("\n\n\n");*/
 }
-
-/* Two putative problems:
-
-1.	Data not being written from the swap block to the page (void* buffer). Only the last swap sector is being written
-2.	Data being written in the reverse order. The last swap sector is copied to the first 512 bytes in page (void* buffer)
-2.	Stack data not being written to the swap space properly. */
 
 struct metaswap_entry*
 free_metaswap_entry(int index){
