@@ -26,6 +26,8 @@ extern struct lock ft_lock;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+extern struct lock memory_master_lock;
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -150,9 +152,7 @@ process_exit (void)
       struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
       if(spage_info->kpage_address != NULL) 
       {
-        lock_acquire(&ft_lock);
         free_frame(spage_info->kpage_address);
-        lock_release(&ft_lock);
       }
     }
 
@@ -473,6 +473,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
+      lock_acquire(&memory_master_lock);
       /* Make an entry in the supplemental page table. */
       struct spinfo * new_spinfo;
       new_spinfo = malloc(sizeof (struct spinfo));
@@ -511,6 +512,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
       ofs += PGSIZE;
+
+      lock_release(&memory_master_lock);
     }
   return true;
 }
@@ -522,6 +525,8 @@ setup_stack (void **esp, char * argv[], int argc)
 {
   uint8_t *kpage;
   char * arg_pointers[argc];
+
+  lock_acquire(&memory_master_lock);
   
   /* Make an entry in the supplemental page table for the stack. */
   struct spinfo * new_spinfo;
@@ -533,7 +538,9 @@ setup_stack (void **esp, char * argv[], int argc)
   new_spinfo->instructions = STACK;
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
-  kpage = assign_page();
+  struct metaframe * assigned_frame = assign_page();
+  assigned_frame->owner_spinfo = new_spinfo;
+  kpage = assigned_frame->page;
   new_spinfo->kpage_address = kpage;
   
   if (kpage != NULL) 
@@ -592,6 +599,8 @@ setup_stack (void **esp, char * argv[], int argc)
   //push dummy return address
   ptrSize4 -= 1;
   *ptrSize4 = 0;
+
+  lock_release(&memory_master_lock);
 
  *esp = (void *) ptrSize4;
  //list_remove(&new_spinfo->sptable_elem);

@@ -123,8 +123,6 @@ struct thread
     /* Additions made for Project 3 */
     struct list spage_table;              /* Supplemental page table for the thread.May need to palloc if it turns out that we can't access this later on*/
 
-    struct lock spage_lock;               /* lock to synchronize access to the thread's supplemental page table */
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

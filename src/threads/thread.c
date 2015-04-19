@@ -39,6 +39,8 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+struct lock memory_master_lock;
+
 void set_denywrite (bool);
 
 /* Stack frame for kernel_thread(). */
@@ -94,6 +96,7 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  lock_init (&memory_master_lock);
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -317,6 +320,8 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
+  lock_acquire(&memory_master_lock);
+
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -336,6 +341,7 @@ thread_exit (void)
       list_remove(&spage_info->sptable_elem);
       free(spage_info); 
     }
+    lock_release(&memory_master_lock);
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
@@ -529,7 +535,6 @@ init_thread (struct thread *t, const char *name, int priority)
 
   sema_init (&t->exec_sema, 0);
   sema_init (&t->wait_sema, 0);
-  lock_init (&t->spage_lock);
 
   t->index_fd = 2;
   t->code_file = NULL;

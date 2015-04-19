@@ -8,12 +8,15 @@
 #include "threads/vaddr.h"
 #include "vm/spagetable.h"
 #include "vm/swaptable.h"
+#include "vm/frametable.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+
+extern struct lock memory_master_lock;
 
 //DEBUG...........
 int num_stack_swap = 0;
@@ -156,9 +159,16 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  uint8_t *kpage = assign_page();
-  if (kpage == NULL)
+  lock_acquire(&memory_master_lock);
+  struct metaframe * assigned_frame = assign_page();
+  //printf("################### %x\n", assigned_frame);
+  //printf("##############55### %x\n", assigned_frame->page);
+  uint8_t * kpage = assigned_frame->page;
+  //printf("#######**#####55### %x\n", kpage);
+  if (kpage == NULL){
+    //printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
     PANIC("assign_page page failed while loading from file");
+  }
 
   /* Implementation of demand paging */
   void* esp_holder;
@@ -171,7 +181,6 @@ page_fault (struct intr_frame *f)
   }
   
   void* fpage_address = pg_round_down(fault_addr);
-  lock_acquire(&thread_current()->spage_lock);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   bool isstackaccess = (fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr;
   if(isstackaccess && spage_info == NULL) 
@@ -188,6 +197,7 @@ page_fault (struct intr_frame *f)
       spage_info = new_spinfo;
     }
 
+    assigned_frame->owner_spinfo = spage_info;
   if(spage_info == NULL)
   {
     printf ("Page fault at %p: %s error %s page in %s context.\n",
@@ -244,7 +254,7 @@ page_fault (struct intr_frame *f)
         if(kpage == NULL)
           PANIC("kpage == NULL");
       }
-    lock_release(&thread_current()->spage_lock);
+    lock_release(&memory_master_lock);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

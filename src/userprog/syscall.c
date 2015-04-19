@@ -59,6 +59,8 @@ void shutdown_power_off(void);
 /* lock to synchronize access to the filesystem */
 static struct lock syscall_lock;
 
+extern struct lock memory_master_lock;
+
 void
 syscall_init (void) 
 {
@@ -383,15 +385,15 @@ check_pointer (void *pointer)
 	//check above phys base			check within its own page
 	if(is_kernel_vaddr (pointer) || pagedir_get_page (thread_current ()->pagedir, pointer) == NULL) {
 		bool is_stack_access = (pointer < PHYS_BASE && pointer >= thread_current()->personal_esp) || thread_current()->personal_esp - 0x20 == pointer || thread_current()->personal_esp - 0x04 == pointer;
-		lock_acquire(&thread_current()->spage_lock);
+		lock_acquire(&memory_master_lock);
 		struct spinfo * target_spinfo = find_spinfo(&thread_current()->spage_table, pg_round_down(pointer));
 		if (!is_stack_access && target_spinfo == NULL)
 		// Quit only if it isn't an invalid stack access.
 		{
-			lock_release(&thread_current()->spage_lock);
+			lock_release(&memory_master_lock);
 			exit_h (-1);
 		}
-		lock_release(&thread_current()->spage_lock);
+		lock_release(&memory_master_lock);
 	}
 	//exit_h will handle freeing the page and closing the process
 }

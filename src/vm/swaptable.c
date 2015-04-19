@@ -12,12 +12,10 @@
 struct metaswap_entry *swaptable;
 struct block *swap_block;
 uint32_t swaptable_size;
-struct lock swap_lock;
 
 void
 swaptable_init()
 {
-	lock_init(&swap_lock);
 	swap_block = block_get_role(BLOCK_SWAP);
 	if(swap_block == NULL)
 		PANIC("Swap_block == NULL");
@@ -44,15 +42,12 @@ get_metaswap_entry_byindex(int index)
 struct metaswap_entry* 
 next_empty_metaswap_entry()
 {
-	lock_acquire(&swap_lock);
 	int i;
 	for(i=0; i<swaptable_size; i++){
 		if(!swaptable[i].isfilled) {
-			lock_release(&swap_lock);
 			return &swaptable[i];
 		}
 	}
-	lock_release(&swap_lock);
 	PANIC("No more swap space!!!!");
 	return NULL;
 }
@@ -72,11 +67,9 @@ move_into_swap(void* page, enum load_instruction instruction, bool isdirty) {
 		block_write(swap_block, 8 * new_swap_entry->swap_index + i, buffer);
 		buffer += BLOCK_SECTOR_SIZE;
 	}
-	lock_acquire(&swap_lock);
 	new_swap_entry->isfilled = true;
 	new_swap_entry->instructions_for_pageheld = instruction;
 	new_swap_entry->isdirty = isdirty;
-	lock_release(&swap_lock);
 	return new_swap_entry->swap_index;
 }
 
@@ -98,13 +91,11 @@ read_from_swap(int index, void *page)
 struct metaswap_entry*
 free_metaswap_entry(int index){
 	ASSERT(index != -1);
-	lock_acquire(&swap_lock);
 	struct metaswap_entry* swap_entry2free = get_metaswap_entry_byindex(index);
 	if(swap_entry2free == NULL)
 		PANIC("swap_entry2free == NULL");
 	ASSERT(swap_entry2free->isfilled);
 	swap_entry2free->isfilled = false;
 	swap_entry2free->instructions_for_pageheld = USELESS;
-	lock_release(&swap_lock);
 	return swap_entry2free;
 }

@@ -9,8 +9,6 @@ int num_user_frames;
 
 struct metaframe * frametable; 
 
-struct lock ft_lock;
-
 uint32_t clock_hand = 0;
 
 //debug info
@@ -22,8 +20,6 @@ int num_pages_assigned = 0;
 void
 init_frametable(uint32_t init_ram_pages)
 {
-	lock_init(&ft_lock);
-
 	/* Free memory starts at 1 MB and runs to the end of RAM. */
   uint8_t *free_start = ptov (1024 * 1024);
   uint8_t *free_end = ptov (init_ram_pages * PGSIZE);
@@ -36,6 +32,7 @@ init_frametable(uint32_t init_ram_pages)
 	for(i = 0; i < num_user_frames; i++) 
 	{
 		frametable[i].page = NULL;
+		frametable[i].owner_spinfo = NULL;
 		frametable[i].isfilled = false;
 	}
 }
@@ -56,31 +53,26 @@ get_metaframe_bypage(void* page) {// not locking because its calling function al
 struct metaframe* 
 next_empty_frame(){
 	int i;
-	lock_acquire(&ft_lock);
 	for(i=0; i<num_user_frames; i++){
 		if(!frametable[i].isfilled)
 			 {
-			 		lock_release(&ft_lock);
 			 		return &frametable[i];
 			 }
 	}
-	lock_release(&ft_lock);
 
 	return evict_page();
 }
 
-void* 
+struct metaframe* 
 assign_page(){
 	struct metaframe* new_frame = next_empty_frame();
 	void* new_page = palloc_get_page(PAL_USER | PAL_ZERO);
-	lock_acquire(&ft_lock);
 	new_frame->page = new_page;
 	new_frame->isfilled = true;
 	num_pages_assigned++;
 	new_frame->owner = thread_current();
-	lock_release(&ft_lock);
 
-	return new_page;
+	return new_frame;
 }
 
 void
@@ -97,10 +89,8 @@ evict_page()// change to do while loop because owner_of_frame changes every time
 {
 	struct thread * owner_of_frame;
 	uint8_t * current_kpage;
-	struct spinfo * current_spinfo;
 	void * current_page;
 	bool is_accessed_bit_set;
-	lock_acquire(&ft_lock);
 
 	do{
 		clock_hand++;
@@ -110,36 +100,27 @@ evict_page()// change to do while loop because owner_of_frame changes every time
 		}
 
 		owner_of_frame = frametable[clock_hand].owner;
-		lock_acquire(&owner_of_frame->spage_lock);
 		current_kpage = frametable[clock_hand].page;
-		current_spinfo = find_spinfo_by_kpage(&owner_of_frame->spage_table, current_kpage);
-		current_page = current_spinfo->upage_address;
+		current_page = frametable[clock_hand].owner_spinfo->upage_address;
 		is_accessed_bit_set = pagedir_is_accessed(owner_of_frame->pagedir, current_page);
 		pagedir_set_accessed(owner_of_frame->pagedir, current_page, false);
-
-		if (is_accessed_bit_set)
-		{
-			lock_release(&owner_of_frame->spage_lock);
-		}
 	}
 	while(is_accessed_bit_set);
 
 	// remove page from owner's page table, and write it to swap. check to see if the page is for stack or dirty
 	bool page_isdirty = pagedir_is_dirty(owner_of_frame->pagedir, current_page);
-	if(current_spinfo->instructions == STACK || page_isdirty)
+	if(frametable[clock_hand].owner_spinfo->instructions == STACK || page_isdirty)
 	{
-		current_spinfo->index_into_swap = move_into_swap(current_kpage, current_spinfo->instructions, page_isdirty);
-		current_spinfo->instructions = SWAP;
+		frametable[clock_hand].owner_spinfo->index_into_swap = move_into_swap(current_kpage, frametable[clock_hand].owner_spinfo->instructions, page_isdirty);
+		frametable[clock_hand].owner_spinfo->instructions = SWAP;
 	}
 	
 	pagedir_clear_page(owner_of_frame->pagedir, current_page);
 
 	// evict the chosen page from the frame
-	current_spinfo->kpage_address = NULL;//setting it to null just here would suffice because in all other locations the spinfo is freed.
+	frametable[clock_hand].owner_spinfo->kpage_address = NULL;//setting it to null just here would suffice because in all other locations the spinfo is freed.
 	palloc_free_page(current_kpage);//freeing the page because it becomes garbage after this
 	free_frame(current_kpage);
-	lock_release(&ft_lock);
-	lock_release(&owner_of_frame->spage_lock);
 
 	//synchronizing the spage_table in exception.c
 	/*lock_acquire(&ft_lock);
