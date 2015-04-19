@@ -538,9 +538,7 @@ setup_stack (void **esp, char * argv[], int argc)
   new_spinfo->instructions = STACK;
   list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
 
-  struct metaframe * assigned_frame = assign_page();
-  assigned_frame->owner_spinfo = new_spinfo;
-  kpage = assigned_frame->page;
+  kpage = assign_page();
   new_spinfo->kpage_address = kpage;
   
   if (kpage != NULL) 

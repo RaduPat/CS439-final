@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include "filesys/off_t.h"
-#include "threads/thread.h"
 
 #include "lib/kernel/list.h"
 

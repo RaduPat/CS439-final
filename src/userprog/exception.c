@@ -8,7 +8,6 @@
 #include "threads/vaddr.h"
 #include "vm/spagetable.h"
 #include "vm/swaptable.h"
-#include "vm/frametable.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -160,15 +159,9 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   lock_acquire(&memory_master_lock);
-  struct metaframe * assigned_frame = assign_page();
-  //printf("################### %x\n", assigned_frame);
-  //printf("##############55### %x\n", assigned_frame->page);
-  uint8_t * kpage = assigned_frame->page;
-  //printf("#######**#####55### %x\n", kpage);
-  if (kpage == NULL){
-    //printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+  uint8_t *kpage = assign_page();
+  if (kpage == NULL)
     PANIC("assign_page page failed while loading from file");
-  }
 
   /* Implementation of demand paging */
   void* esp_holder;
@@ -197,7 +190,6 @@ page_fault (struct intr_frame *f)
       spage_info = new_spinfo;
     }
 
-    assigned_frame->owner_spinfo = spage_info;
   if(spage_info == NULL)
   {
     printf ("Page fault at %p: %s error %s page in %s context.\n",
