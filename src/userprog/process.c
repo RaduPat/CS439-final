@@ -21,6 +21,8 @@
 #include "vm/spagetable.h"
 #define MAXARGS 25
 
+extern struct lock ft_lock;
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -148,7 +150,9 @@ process_exit (void)
       struct spinfo *spage_info = list_entry (e, struct spinfo, sptable_elem);
       if(spage_info->kpage_address != NULL) 
       {
+        lock_acquire(&ft_lock);
         free_frame(spage_info->kpage_address);
+        lock_release(&ft_lock);
       }
     }
 
