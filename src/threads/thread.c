@@ -529,6 +529,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   sema_init (&t->exec_sema, 0);
   sema_init (&t->wait_sema, 0);
+  lock_init (&t->spage_lock);
 
   t->index_fd = 2;
   t->code_file = NULL;

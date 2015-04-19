@@ -7,6 +7,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "vm/spagetable.h"
+#include "vm/swaptable.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -155,6 +156,10 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  uint8_t *kpage = assign_page();
+  if (kpage == NULL)
+    PANIC("assign_page page failed while loading from file");
+
   /* Implementation of demand paging */
   void* esp_holder;
   if (!user)
@@ -166,6 +171,7 @@ page_fault (struct intr_frame *f)
   }
   
   void* fpage_address = pg_round_down(fault_addr);
+  lock_acquire(&thread_current()->spage_lock);
   struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   bool isstackaccess = (fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr;
   if(isstackaccess && spage_info == NULL) 
@@ -179,19 +185,11 @@ page_fault (struct intr_frame *f)
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = STACK;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
-      //printf("$$$$$$$ in Stack growth handler\n");
+      spage_info = new_spinfo;
     }
 
-    printf("######===== faulting address: %x\n", fpage_address);
-
-  spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
   if(spage_info == NULL)
   {
-    debug_backtrace();
-    printf("!!!!!!!!!! %x\n", thread_current());
-    printf("!!!!!!!!!! fpage_address: %x\n", fpage_address);
-    printf("!!!!!!!!!! fault_addr: %x\n", fault_addr);
-    //PANIC("stop");
     printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
@@ -206,20 +204,8 @@ page_fault (struct intr_frame *f)
     thread_exit();
   }
 
-  if(spage_info->instructions == STACK){
-    printf("&&&&&&&& in stack page fault handler\n");
-  }
-  else if(spage_info->instructions == FILE){
-    printf("&&&&&&&& in file page fault handler\n");
-  }
-  else if(spage_info->instructions == SWAP){
-    printf("&&&&&&&& in swap page fault handler\n");
-  }
 
-  uint8_t *kpage = assign_page();
-  if (kpage == NULL)
-    PANIC("assign_page page failed while loading from file");
-  //printf("********* reached exception.c line 205\n");
+  struct metaswap_entry* freed_metaswap_entry = NULL;
 
   if (spage_info->instructions == FILE) {
 
@@ -237,26 +223,11 @@ page_fault (struct intr_frame *f)
   }
   else if (spage_info->instructions == SWAP)
   {
-    //printf("$$$$$$$ swapped in a page\n");
     read_from_swap(spage_info->index_into_swap, kpage);
-        /*int i;
-        for (i = 0; i < 100; ++i)
-        {
-          printf("# (%c) %x | ", *(((char*) kpage) + i + 1000), ((char*) kpage) + i + 1000);
-        }
-        PANIC("dealing with stack");*/
-    enum load_instruction saved_instruction = free_metaswap_entry(spage_info->index_into_swap);
-    spage_info->instructions = saved_instruction;
-    if (saved_instruction == STACK)
-    {
-      num_stack_swap++;
-    }
+    freed_metaswap_entry = free_metaswap_entry(spage_info->index_into_swap);
+    spage_info->instructions = freed_metaswap_entry->instructions_for_pageheld;
+    spage_info->index_into_swap = -1; // temp check
   }
-
-  //printf("^&^^^^^^^^^^^^ num_stack_swap: %d\n", num_stack_swap);
-
-
-  //printf("********* reached exception.c line 229\n");
 
   /* Add the page to the process's address space. */
       if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
@@ -266,11 +237,15 @@ page_fault (struct intr_frame *f)
         }
       else {
         spage_info->kpage_address = kpage;
+        if (freed_metaswap_entry != NULL)
+        {
+          pagedir_set_dirty(thread_current()->pagedir, spage_info->upage_address, freed_metaswap_entry->isdirty);
+        }
         if(kpage == NULL)
           PANIC("kpage == NULL");
       }
+    lock_release(&thread_current()->spage_lock);
 
-  //printf("********* reached exception.c line 240\n");
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */

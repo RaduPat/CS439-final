@@ -6,7 +6,7 @@
 #include "tests/lib.h"
 #include "tests/main.h"
 
-#define SIZE (388 * 4 * 1024)
+#define SIZE (2 * 1024 * 1024)
 
 static char buf[SIZE];
 
@@ -20,13 +20,12 @@ test_main (void)
   msg ("initialize");
   memset (buf, 0x5a, sizeof buf);
 
-  printf("______________ finished memset!\n");
-
   /* Check that it's all 0x5a. */
   msg ("read pass");
-  for (i = 0; i < SIZE; i++)
+  for (i = 0; i < SIZE; i++){
     if (buf[i] != 0x5a)
       fail ("byte %zu != 0x5a", i);
+  }
 
   /* Encrypt zeros. */
   msg ("read/modify/write pass one");
@@ -40,7 +39,8 @@ test_main (void)
 
   /* Check that it's all 0x5a. */
   msg ("read pass");
-  for (i = 0; i < SIZE; i++)
+  for (i = 0; i < SIZE; i++) {
     if (buf[i] != 0x5a)
       fail ("byte %zu != 0x5a", i);
+  }
 }
