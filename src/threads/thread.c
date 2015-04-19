@@ -321,7 +321,7 @@ thread_exit (void)
   process_exit ();
 #endif
 
-
+  lock_acquire(&thread_current()->spage_lock);
   struct list_elem * e;
   for (e = list_begin (&thread_current()->spage_table);
          e != list_end (&thread_current()->spage_table);)
@@ -336,6 +336,7 @@ thread_exit (void)
       list_remove(&spage_info->sptable_elem);
       free(spage_info); 
     }
+  lock_release(&thread_current()->spage_lock);
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
