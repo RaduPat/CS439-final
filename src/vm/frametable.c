@@ -85,20 +85,64 @@ assign_page(){
 
 void
 free_frame(void* page){
-	lock_acquire(&ft_lock);
 	struct metaframe* frame2free = get_metaframe_bypage(page);
 	frame2free->page = NULL;
 	frame2free->owner = NULL;
 	frame2free->isfilled = false;
-	lock_release(&ft_lock);
 }
 
 // Implement page eviction using the clock algorithm
 static struct metaframe*
 evict_page()// change to do while loop because owner_of_frame changes every time, so lock changes
 {
-	//synchronizing the spage_table in exception.c
+	struct thread * owner_of_frame;
+	uint8_t * current_kpage;
+	struct spinfo * current_spinfo;
+	void * current_page;
+	bool is_accessed_bit_set;
 	lock_acquire(&ft_lock);
+
+	do{
+		clock_hand++;
+		if (clock_hand >= num_user_frames)
+		{
+			clock_hand = 0;// move the clock_hand back to the start
+		}
+
+		owner_of_frame = frametable[clock_hand].owner;
+		lock_acquire(&owner_of_frame->spage_lock);
+		current_kpage = frametable[clock_hand].page;
+		current_spinfo = find_spinfo_by_kpage(&owner_of_frame->spage_table, current_kpage);
+		current_page = current_spinfo->upage_address;
+		is_accessed_bit_set = pagedir_is_accessed(owner_of_frame->pagedir, current_page);
+		pagedir_set_accessed(owner_of_frame->pagedir, current_page, false);
+
+		if (is_accessed_bit_set)
+		{
+			lock_release(&owner_of_frame->spage_lock);
+		}
+	}
+	while(is_accessed_bit_set);
+
+	// remove page from owner's page table, and write it to swap. check to see if the page is for stack or dirty
+	bool page_isdirty = pagedir_is_dirty(owner_of_frame->pagedir, current_page);
+	if(current_spinfo->instructions == STACK || page_isdirty)
+	{
+		current_spinfo->index_into_swap = move_into_swap(current_kpage, current_spinfo->instructions, page_isdirty);
+		current_spinfo->instructions = SWAP;
+	}
+	
+	pagedir_clear_page(owner_of_frame->pagedir, current_page);
+
+	// evict the chosen page from the frame
+	current_spinfo->kpage_address = NULL;//setting it to null just here would suffice because in all other locations the spinfo is freed.
+	palloc_free_page(current_kpage);//freeing the page because it becomes garbage after this
+	free_frame(current_kpage);
+	lock_release(&ft_lock);
+	lock_release(&owner_of_frame->spage_lock);
+
+	//synchronizing the spage_table in exception.c
+	/*lock_acquire(&ft_lock);
 	struct thread * owner_of_frame = frametable[clock_hand].owner;
 	lock_acquire(&owner_of_frame->spage_lock);
 	uint8_t * current_kpage = frametable[clock_hand].page;
@@ -134,7 +178,7 @@ evict_page()// change to do while loop because owner_of_frame changes every time
 	lock_release(&ft_lock);
 	lock_release(&owner_of_frame->spage_lock);
 	palloc_free_page(current_kpage);//freeing the page because it becomes garbage after this
-	free_frame(current_kpage);
+	free_frame(current_kpage);*/
 
 	return &frametable[clock_hand];
 }
