@@ -320,7 +320,10 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
-  lock_acquire(&memory_master_lock);
+  if (!lock_held_by_current_thread(&memory_master_lock))
+  {
+      lock_acquire(&memory_master_lock);
+  }
 
 #ifdef USERPROG
   process_exit ();
@@ -341,7 +344,10 @@ thread_exit (void)
       list_remove(&spage_info->sptable_elem);
       free(spage_info); 
     }
+    if (lock_held_by_current_thread(&memory_master_lock))
+  {
     lock_release(&memory_master_lock);
+  }
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
