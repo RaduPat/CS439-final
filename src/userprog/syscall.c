@@ -76,8 +76,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   check_pointer (f->esp);
   thread_current()->personal_esp = f->esp;
 
-  //printf("# # # # # # # # # # ######### # entered system call\n");
-
   int *esp_int_pointer = (int*) f->esp;
   int syscall_number = *esp_int_pointer;
 
@@ -92,9 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 			case SYS_EXIT:
 				{
 					int status;
-					//printf("$#$$$$$$$$$$$ esp_pointer+1 %x\n", esp_int_pointer+1);
 					check_pointer (esp_int_pointer+1);
-					//PANIC ("exits check_pointer");
 					status = (int) *(esp_int_pointer+1);
 					exit_h (status);
 				}
@@ -379,6 +375,7 @@ find_open_file (int fd)
 		return NULL; 
 }
 
+/* Eddy and Andrew drove here */
 void
 check_pointer (void *pointer)
 {

@@ -6,9 +6,9 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include "filesys/off_t.h"
-
 #include "lib/kernel/list.h"
 
+/* Eddy drove here */
 /* Used to determine how to load page back into memory */
 enum load_instruction
 {
@@ -34,7 +34,5 @@ struct spinfo
 };
 
 struct spinfo * find_spinfo (struct list * info_list, uint8_t * page);
-
-struct spinfo * find_spinfo_by_kpage (struct list * info_list, uint8_t * kpage);
 
 #endif /* vm/spagetable.h */

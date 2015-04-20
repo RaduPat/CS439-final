@@ -1,0 +1,147 @@
+3/28, 3:00p - 5:00p, Andrew, Nick, Radu, Eddy 2 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+3/31, 2:00p - 5:00p, Andrew, Nick, Radu, Eddy 3 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+
+4/1, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+4/2, 2:00p - 5:00p, Andrew, Nick, Radu, Eddy 3 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+
+4/9, 3:00p - 6:00p, Andrew, Nick, Radu, Eddy 3 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+
+4/10, 3:30p - 7:00p, Andrew, Nick, Radu, Eddy 3.5 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Radu, 30 minutes
+
+3/13, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+3/14, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+3/15, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+3/16, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+
+3/17, 1:30p - 10:00p, Andrew, Nick, Radu, Eddy 8.5 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+
+3/18, 2:30p - 10:00p, Andrew, Nick, Radu, Eddy 7.5 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+
+3/19, 2:00p - 6:00p, Andrew, Nick, Radu, Eddy 4 hours
+Driver Order and Time Length:
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes
+Andrew, 30 minutes
+Eddy, 30 minutes
+Nick, 30 minutes
+Radu, 30 minutes

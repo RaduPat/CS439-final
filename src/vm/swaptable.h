@@ -5,6 +5,7 @@
 #include <debug.h>
 #include "vm/spagetable.h"
 
+/* Nicholas drove here */
 //meta data for an entry in the swap space 
 struct metaswap_entry
 {

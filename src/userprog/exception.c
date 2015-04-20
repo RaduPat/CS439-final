@@ -158,95 +158,98 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  lock_acquire(&memory_master_lock);
-  uint8_t *kpage = assign_page();
+  lock_acquire (&memory_master_lock);
+  uint8_t *kpage = assign_page ();
   if (kpage == NULL)
     PANIC("assign_page page failed while loading from file");
 
   /* Implementation of demand paging */
+  /* Eddy and Andrew drove here */
   void* esp_holder;
   if (!user)
-  {
-    esp_holder = thread_current()->personal_esp;
-  }
-  else{
-    esp_holder = f->esp;
-  }
+    {
+      esp_holder = thread_current ()->personal_esp;
+    }
+  else
+    {
+      esp_holder = f->esp;
+    }
   
-  void* fpage_address = pg_round_down(fault_addr);
-  struct spinfo * spage_info = find_spinfo(&thread_current()->spage_table, fpage_address);
+  void* fpage_address = pg_round_down (fault_addr);
+  struct spinfo * spage_info = find_spinfo (&thread_current ()->spage_table, fpage_address);
   bool isstackaccess = (fault_addr < PHYS_BASE && fault_addr >= esp_holder) || esp_holder - 0x20 == fault_addr || esp_holder - 0x04 == fault_addr;
   if(isstackaccess && spage_info == NULL) 
     {
       struct spinfo * new_spinfo;
-      new_spinfo = malloc(sizeof (struct spinfo));
+      new_spinfo = malloc (sizeof (struct spinfo));
       new_spinfo->file = NULL;
       new_spinfo->bytes_to_read = 0;
       new_spinfo->writable = true;
-      new_spinfo->upage_address = pg_round_down(fault_addr);
+      new_spinfo->upage_address = pg_round_down (fault_addr);
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = STACK;
-      list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
+      list_push_back (&thread_current()->spage_table, &new_spinfo->sptable_elem);
       spage_info = new_spinfo;
     }
 
   if(spage_info == NULL)
-  {
-    printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
+    {
+      printf ("Page fault at %p: %s error %s page in %s context.\n",
+            fault_addr,
+            not_present ? "not present" : "rights violation",
+            write ? "writing" : "reading",
+            user ? "user" : "kernel");
 
-    kill (f);
-  }
+      kill (f);
+    }
   if (!spage_info->writable && write)
-  {
-    // Writing to an un writable location
-    thread_exit();
-  }
+    {
+      // Writing to an un writable location
+      thread_exit ();
+    }
 
-
+  /* Radu drove here */
   struct metaswap_entry* freed_metaswap_entry = NULL;
 
-  if (spage_info->instructions == FILE) {
+  if (spage_info->instructions == FILE) 
+    {
+        /* Load this page from a file. */
+        file_seek(spage_info->file, spage_info->file_offset);
+        if (file_read (spage_info->file, kpage, spage_info->bytes_to_read) != (int) spage_info->bytes_to_read)
+          {
+            free_frame (kpage);
+            PANIC("reading the file failed in page fault handler"); 
+          }
 
-      /* Load this page from a file. */
-      file_seek(spage_info->file, spage_info->file_offset);
-      if (file_read (spage_info->file, kpage, spage_info->bytes_to_read) != (int) spage_info->bytes_to_read)
-        {
-          free_frame (kpage);
-          PANIC("reading the file failed in page fault handler"); 
-        }
+          size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
 
-        size_t page_zero_bytes = PGSIZE - spage_info->bytes_to_read;
-
-      memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);      
-  }
+        memset (kpage + spage_info->bytes_to_read, 0, page_zero_bytes);      
+    }
   else if (spage_info->instructions == SWAP)
-  {
-    read_from_swap(spage_info->index_into_swap, kpage);
-    freed_metaswap_entry = free_metaswap_entry(spage_info->index_into_swap);
-    spage_info->instructions = freed_metaswap_entry->instructions_for_pageheld;
-    spage_info->index_into_swap = -1; // temp check
-  }
+    {
+      read_from_swap (spage_info->index_into_swap, kpage);
+      freed_metaswap_entry = free_metaswap_entry (spage_info->index_into_swap);
+      spage_info->instructions = freed_metaswap_entry->instructions_for_pageheld;
+      spage_info->index_into_swap = -1; // temp check
+    }
 
   /* Add the page to the process's address space. */
-      if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
+  if (!install_page (spage_info->upage_address, kpage, spage_info->writable)) 
+    {
+      free_frame (kpage);
+      PANIC("install page failed."); 
+    }
+  else 
+    {
+      spage_info->kpage_address = kpage;
+      if (freed_metaswap_entry != NULL)
         {
-          free_frame (kpage);
-          PANIC("install page failed."); 
+          pagedir_set_dirty (thread_current ()->pagedir, spage_info->upage_address, freed_metaswap_entry->isdirty);
         }
-      else {
-        spage_info->kpage_address = kpage;
-        if (freed_metaswap_entry != NULL)
-        {
-          pagedir_set_dirty(thread_current()->pagedir, spage_info->upage_address, freed_metaswap_entry->isdirty);
-        }
-        if(kpage == NULL)
-          PANIC("kpage == NULL");
-      }
-    lock_release(&memory_master_lock);
+      if(kpage == NULL)
+        PANIC("kpage == NULL");
+    }
+  lock_release (&memory_master_lock);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

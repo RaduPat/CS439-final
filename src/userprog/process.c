@@ -485,27 +485,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       new_spinfo->kpage_address = NULL;
       new_spinfo->instructions = FILE;
       list_push_back(&thread_current()->spage_table, &new_spinfo->sptable_elem);
-      
-//      printf("((((((((( created spinfo for this upage: ))))))))) : %x \n", upage);
-
-      /*uint8_t *kpage = assign_page();
-      if (kpage == NULL)
-        return false;*/
-
-      /* Load this page. */
-     /* if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          free_frame (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);*/
-
-      /* Add the page to the process's address space. */
-      /*if (!install_page (upage, kpage, writable)) 
-        {
-          free_frame (kpage);
-          return false; 
-        }*/
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -601,7 +580,6 @@ setup_stack (void **esp, char * argv[], int argc)
   lock_release(&memory_master_lock);
 
  *esp = (void *) ptrSize4;
- //list_remove(&new_spinfo->sptable_elem);
   return true;// because we're doing demand paging.
 }
 
